@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+!.env.production.example
+**/.env
+**/.env.local
+clarklab-api/.env
+clarklab-frontend/.env
+node_modules/
+dist/
+agent.yaml
+**/*.pem
+*.key
+*.p12

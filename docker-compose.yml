@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: clarklab
+      POSTGRES_PASSWORD: clarklab
+      POSTGRES_DB: clarklab
+    ports:
+      - "5432:5432"
+    volumes:
+      - clarklab_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clarklab -d clarklab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: clarklab-api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://clarklab:clarklab@postgres:5432/clarklab
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-dev-integration-key}
+      SIGNUP_ACCESS_CODE: ${SIGNUP_ACCESS_CODE:-demo-homelab}
+      PORT: 3000
+      CORS_ORIGIN: http://localhost:5173
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  clarklab_pg:

@@ -1,0 +1,1 @@
+docker build . -f ./.nixpacks/Dockerfile -t def2aa27-85fc-4d5a-8cd0-8aec34c443cc --build-arg CI=true --build-arg NIXPACKS_METADATA=node --build-arg NODE_ENV=production --build-arg NPM_CONFIG_PRODUCTION=false --platform linux/arm64

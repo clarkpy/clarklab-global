@@ -1,0 +1,14 @@
+/Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/deps/serde-40929b35b23dda23.d: /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/build/serde-5e17367d8685998c/out/private.rs
+
+/Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/deps/libserde-40929b35b23dda23.rlib: /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/build/serde-5e17367d8685998c/out/private.rs
+
+/Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/deps/libserde-40929b35b23dda23.rmeta: /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/build/serde-5e17367d8685998c/out/private.rs
+
+/Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/cigan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/build/serde-5e17367d8685998c/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/cigan/Desktop/clarklab-global/clarklab-agent/target/release/build/serde-5e17367d8685998c/out

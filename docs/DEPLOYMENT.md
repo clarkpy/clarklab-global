@@ -104,7 +104,7 @@ Import the repository in Vercel. [`vercel.json`](vercel.json) at the repo root s
 
 | Setting | Value |
 |---------|--------|
-| Install | `npm ci` |
+| Install | `npm ci --include=dev` |
 | Build | `npm run build -w clarklab-frontend` |
 | Output | `clarklab-frontend/dist` |
 | Rewrites | SPA fallback to `index.html` |

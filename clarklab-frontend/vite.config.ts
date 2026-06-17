@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 const appRoot = __dirname
 const repoRoot = path.resolve(appRoot, '..')
@@ -14,7 +15,7 @@ function envDirectory(): string {
 
 export default defineConfig({
   envDir: envDirectory(),
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(appRoot, './src'),

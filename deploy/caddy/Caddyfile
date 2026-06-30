@@ -1,0 +1,7 @@
+{
+	admin 0.0.0.0:2019
+}
+
+:80 {
+	respond "No routes configured" 404
+}

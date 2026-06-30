@@ -1,0 +1,9 @@
+tunnel: REDACTED_UUID
+credentials-file: /etc/cloudflared/REDACTED_UUID.json
+
+ingress:
+  - hostname: api.clarklab.tech
+    service: http://127.0.0.1:3000
+  - hostname: "*.clarklab.tech"
+    service: http://127.0.0.1:8080
+  - service: http_status:404

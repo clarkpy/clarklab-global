@@ -1,0 +1,5 @@
+ALTER TABLE service_environments
+  ADD COLUMN IF NOT EXISTS cpu_percent REAL,
+  ADD COLUMN IF NOT EXISTS memory_used_mb REAL,
+  ADD COLUMN IF NOT EXISTS memory_limit_mb REAL,
+  ADD COLUMN IF NOT EXISTS restart_count INTEGER NOT NULL DEFAULT 0;

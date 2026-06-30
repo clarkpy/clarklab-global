@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clarklab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: clarklab
+    volumes:
+      - clarklab_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clarklab -d clarklab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: clarklab-api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://clarklab:${POSTGRES_PASSWORD}@postgres:5432/clarklab
+      CLARKLAB_HOST_REPO_PATH: /host/clarklab
+      CLARKLAB_DOCKER_COMPOSE_FILE: docker-compose.prod.yml
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./deploy/caddy:/data/caddy
+      - .:/host/clarklab
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      caddy:
+        condition: service_started
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  clarklab_pg:

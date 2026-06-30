@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build -w clarklab-frontend",
+  "outputDirectory": "clarklab-frontend/dist",
+  "installCommand": "NPM_CONFIG_PRODUCTION=false npm ci --include=dev",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

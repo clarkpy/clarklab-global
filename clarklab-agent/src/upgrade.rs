@@ -294,11 +294,30 @@ async fn report_completion(
     Err("failed to report agent update completion".to_string())
 }
 
+fn resolve_systemctl_binary() -> String {
+    for candidate in ["/usr/bin/systemctl", "/bin/systemctl"] {
+        if Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+    "systemctl".to_string()
+}
+
 fn restart_agent_service(agent_logs: &mut AgentLogBuffer) {
     agent_logs.info("Restarting agent service");
-    let _ = Command::new("sudo")
-        .args(["systemctl", "restart", "clarklab-agent"])
-        .spawn();
+    let systemctl = resolve_systemctl_binary();
+    let result = Command::new("sudo")
+        .arg(&systemctl)
+        .args(["restart", "--no-block", "clarklab-agent"])
+        .status();
+
+    match result {
+        Ok(status) if status.success() => agent_logs.info("Agent restart scheduled"),
+        Ok(status) => {
+            agent_logs.error(format!("Agent restart command exited with status {status}"))
+        }
+        Err(err) => agent_logs.error(format!("Failed to restart agent service: {err}")),
+    }
 }
 
 fn run_agent_update(

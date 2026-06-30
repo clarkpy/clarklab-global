@@ -6,6 +6,7 @@ COMPOSE_FILE="${CLARKLAB_DOCKER_COMPOSE_FILE:-docker-compose.prod.yml}"
 BRANCH="${CLARKLAB_UPDATE_BRANCH:-main}"
 GIT_HEADER="${CLARKLAB_GIT_HTTP_HEADER:-}"
 DOCKER_CLI_IMAGE="${CLARKLAB_DOCKER_CLI_IMAGE:-docker:27-cli}"
+SELF_CONTAINER="${CLARKLAB_API_CONTAINER:-$HOSTNAME}"
 
 cd "$REPO_PATH"
 
@@ -23,8 +24,18 @@ else
   git pull --ff-only origin "$BRANCH"
 fi
 
-echo "Rebuilding API container..."
-docker compose -f "$COMPOSE_FILE" build api
+PROJECT_NAME="$(docker inspect "$SELF_CONTAINER" --format '{{ index .Config.Labels "com.docker.compose.project" }}' 2>/dev/null || true)"
+if [[ -z "$PROJECT_NAME" ]]; then
+  PROJECT_NAME="$(basename "$REPO_PATH")"
+fi
+
+HOST_PROJECT_DIR="$(docker inspect "$SELF_CONTAINER" --format "{{ range .Mounts }}{{ if eq .Destination \"${REPO_PATH}\" }}{{ .Source }}{{ end }}{{ end }}" 2>/dev/null || true)"
+if [[ -z "$HOST_PROJECT_DIR" ]]; then
+  HOST_PROJECT_DIR="$REPO_PATH"
+fi
+
+echo "Rebuilding API container for project ${PROJECT_NAME}..."
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" build api
 
 DEPLOYED_SHA="$(git rev-parse HEAD)"
 mkdir -p "$REPO_PATH/.clarklab"
@@ -41,14 +52,13 @@ HELPER_ID="$(
   docker run -d --rm \
     --name "$RESTART_NAME" \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "${REPO_PATH}:${REPO_PATH}" \
-    -w "${REPO_PATH}" \
+    -v "${HOST_PROJECT_DIR}:${HOST_PROJECT_DIR}" \
+    -w "${HOST_PROJECT_DIR}" \
     "$DOCKER_CLI_IMAGE" \
     sh -ec "
       set -e
       sleep 2
-      docker compose -f '${COMPOSE_FILE}' stop api || true
-      docker compose -f '${COMPOSE_FILE}' up -d --no-deps api
+      docker compose -p '${PROJECT_NAME}' -f '${COMPOSE_FILE}' up -d --no-deps api
     "
 )"
 

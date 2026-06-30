@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access, mkdir } from 'node:fs/promises'
+import { hostname } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { v4 as uuidv4 } from 'uuid'
@@ -253,6 +254,7 @@ async function runApiUpdateScript(
         CLARKLAB_GIT_HTTP_HEADER: gitHttpHeader,
         CLARKLAB_UPDATE_BRANCH: branch,
         CLARKLAB_API_UPDATE_JOB_ID: jobId,
+        CLARKLAB_API_CONTAINER: process.env.HOSTNAME?.trim() || hostname(),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })

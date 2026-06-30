@@ -181,10 +181,12 @@ systemctl restart "$SERVICE_NAME"
 
 BINARY_HELPER="$(resolve_helper_script clarklab-install-agent-binary.sh)"
 install -m 755 "$BINARY_HELPER" /usr/local/sbin/clarklab-install-agent-binary
+SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
 mkdir -p /etc/sudoers.d
 cat > /etc/sudoers.d/clarklab-agent <<EOF
 ${SERVICE_USER} ALL=(root) NOPASSWD: /usr/local/sbin/clarklab-install-agent-binary
-${SERVICE_USER} ALL=(root) NOPASSWD: /bin/systemctl restart ${SERVICE_NAME}
+${SERVICE_USER} ALL=(root) NOPASSWD: ${SYSTEMCTL_BIN} restart ${SERVICE_NAME}
+${SERVICE_USER} ALL=(root) NOPASSWD: ${SYSTEMCTL_BIN} restart --no-block ${SERVICE_NAME}
 EOF
 chmod 440 /etc/sudoers.d/clarklab-agent
 

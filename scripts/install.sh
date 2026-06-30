@@ -53,7 +53,7 @@ resolve_helper_script() {
   echo "$dest"
 }
 
-resolve_helper_script() {
+mkdir -p "$CONFIG_DIR"
 mkdir -p "$INSTALL_DIR"
 
 if ! id "$SERVICE_USER" >/dev/null 2>&1; then

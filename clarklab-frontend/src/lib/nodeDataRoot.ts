@@ -1,4 +1,6 @@
 import { buildDevLocalCommands } from '@/lib/devAgentCommands'
+import { buildAgentInstallCommand, parseServerUrlFromInstallCommand } from '@/lib/agentInstallCommand'
+import { AGENT_INSTALL_URL, API_URL, CLARKLAB_SERVER_URL } from '@/lib/config'
 
 export const DEFAULT_NODE_DATA_ROOT = '/var/lib/clarklab/services'
 export const LOCAL_DEV_DATA_ROOT = '~/.clarklab/services'
@@ -14,9 +16,19 @@ export function appendDataRootFlag(command: string, dataRoot: string): string {
   return `${command} --data-root ${shellQuote(dataRoot)}`
 }
 
-function extractServerUrl(installCommand: string): string | null {
-  const match = installCommand.match(/--server\s+(\S+)/)
-  return match?.[1] ?? null
+function resolveInstallCommand(
+  registration: { token: string; installCommand: string },
+): string {
+  const installUrl =
+    AGENT_INSTALL_URL || (API_URL ? `${API_URL.replace(/\/$/, '')}/agent/install.sh` : '')
+  const serverUrl =
+    parseServerUrlFromInstallCommand(registration.installCommand) || CLARKLAB_SERVER_URL || API_URL
+
+  if (registration.token && installUrl && serverUrl) {
+    return buildAgentInstallCommand(installUrl, serverUrl, registration.token)
+  }
+
+  return registration.installCommand
 }
 
 export function withRegistrationDataRoot<
@@ -29,7 +41,8 @@ export function withRegistrationDataRoot<
     dataRoot?: string
   },
 >(registration: T, dataRoot: string): T & { dataRoot: string } {
-  const serverUrl = extractServerUrl(registration.installCommand)
+  const serverUrl =
+    parseServerUrlFromInstallCommand(registration.installCommand) || CLARKLAB_SERVER_URL || API_URL
   const devLocalCommands = serverUrl
     ? buildDevLocalCommands(registration.token, serverUrl, dataRoot)
     : registration.devLocalCommands
@@ -37,7 +50,7 @@ export function withRegistrationDataRoot<
   return {
     ...registration,
     dataRoot,
-    installCommand: appendDataRootFlag(registration.installCommand, dataRoot),
+    installCommand: appendDataRootFlag(resolveInstallCommand(registration), dataRoot),
     devRegisterCommand: devLocalCommands?.linuxMac.register ?? registration.devRegisterCommand,
     devRunCommand: devLocalCommands?.linuxMac.run ?? registration.devRunCommand,
     devLocalCommands,

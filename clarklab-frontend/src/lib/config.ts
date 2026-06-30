@@ -1,5 +1,12 @@
 export const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+export const CLARKLAB_SERVER_URL =
+  import.meta.env.VITE_CLARKLAB_SERVER_URL?.trim() || API_URL
+
+export const AGENT_INSTALL_URL =
+  import.meta.env.VITE_CLARKLAB_AGENT_INSTALL_URL?.trim() ||
+  (API_URL ? `${API_URL.replace(/\/$/, '')}/agent/install.sh` : '')
+
 export const DEFAULT_APP_BRAND_NAME =
   import.meta.env.VITE_APP_BRAND_NAME?.trim() || 'Clarklab'
 

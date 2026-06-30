@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Circle, Loader2 } from 'lucide-react'
 import { CopyButton } from '@/components/CopyButton'
+import { AgentInstallCommandPanel } from '@/components/AgentInstallCommandPanel'
 import { TokenExpiryCountdown } from '@/components/TokenExpiryCountdown'
 import { Card } from '@/components/ui/card'
 import {
@@ -313,9 +314,9 @@ export function NodeSetupWizard({
                     : 'theme-glass hover:border-violet-400/25'
                 }`}
               >
-                <span className="theme-heading block text-sm font-black">Install automatically</span>
+                <span className="theme-heading block text-sm font-black">One-command install</span>
                 <span className="theme-muted mt-1 block text-xs leading-5">
-                  Recommended for a persistent Linux server.
+                  Copy a single bash command for your Linux server.
                 </span>
               </button>
               <button
@@ -338,15 +339,11 @@ export function NodeSetupWizard({
           ) : null}
 
           {setupMethod === 'installer' && !isReconnect ? (
-            <div className="theme-glass rounded-2xl px-4 py-3">
-              <p className="theme-muted text-[10px] uppercase tracking-[0.3em]">Run on the server</p>
-              <div className="mt-2 flex items-start justify-between gap-2">
-                <code className="theme-subheading block flex-1 font-mono text-xs leading-relaxed break-all">
-                  {installCommand || 'Install command unavailable — regenerate token'}
-                </code>
-                {installCommand ? <CopyButton value={installCommand} label="Copy install command" /> : null}
-              </div>
-            </div>
+            installCommand ? (
+              <AgentInstallCommandPanel command={installCommand} />
+            ) : (
+              <p className="theme-muted text-sm">Install command unavailable — regenerate token</p>
+            )
           ) : (
             <LocalDevCommandsPanel
               commands={activeDevCommands}
@@ -357,7 +354,7 @@ export function NodeSetupWizard({
           )}
           <p className="theme-muted mt-2 text-xs leading-6">
             {setupMethod === 'installer' && !isReconnect
-              ? 'Installs the agent, registers this node, and starts a background system service.'
+              ? 'After the command finishes, this page updates automatically when the node sends its first heartbeat.'
               : isReconnect
                 ? 'Run these from the repository root on the host you are reconnecting.'
                 : 'Build the agent once, then register it from the repository root on your development machine.'}

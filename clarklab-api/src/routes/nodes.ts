@@ -32,6 +32,7 @@ import {
 } from '../lib/nodeDataRoot.js'
 import { buildDevLocalCommands } from '../lib/devAgentCommands.js'
 import { buildAgentInstallCommand } from '../lib/agentInstallCommand.js'
+import { findNodePortConflict, validateHostPort } from '../lib/nodePortCheck.js'
 import { getNodeReleaseForUser } from '../lib/platformRelease.js'
 import { getActiveAgentUpdateTaskForNode } from '../lib/agentUpdateTasks.js'
 import { formatServiceAccessUrl, isUsableNodeIp } from '../lib/serviceUrl.js'
@@ -479,6 +480,46 @@ nodeRoutes.get('/:nodeId/services', async (c) => {
       nodeId: row.node_id as string,
     })),
   )
+})
+
+nodeRoutes.get('/:nodeId/ports/check', async (c) => {
+  const nodeId = c.req.param('nodeId')
+  const projectId = c.req.query('projectId')?.trim() ?? ''
+  const port = Number(c.req.query('port'))
+  const excludeServiceEnvironmentId = c.req.query('excludeServiceEnvironmentId')?.trim() || undefined
+
+  if (!projectId) {
+    return c.json({ available: false, message: 'projectId is required', port: 0 }, 400)
+  }
+
+  const portError = validateHostPort(port)
+  if (portError) {
+    return c.json({ available: false, message: portError, port }, 400)
+  }
+
+  const nodeResult = await pool.query('SELECT id FROM nodes WHERE id = $1', [nodeId])
+  if (!nodeResult.rows[0]) {
+    return c.json({ error: 'Node not found' }, 404)
+  }
+  const allowed = await canUseNodeForProject(c.get('userId'),c.get('role'),nodeId,projectId,)
+  if (!allowed) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const conflict = await findNodePortConflict(nodeId, port, excludeServiceEnvironmentId)
+
+  return c.json({
+    available: !conflict.inUse,
+    port,
+    nodeId,
+    message: conflict.inUse ? conflict.message : '',
+    conflict: conflict.inUse
+      ? {
+          serviceName: conflict.serviceName ?? '',
+          environment: conflict.environment ?? '',
+        }
+      : null,
+  })
 })
 
 nodeRoutes.patch('/:nodeId', async (c) => {

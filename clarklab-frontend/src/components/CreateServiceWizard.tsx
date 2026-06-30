@@ -51,6 +51,8 @@ import {
   normalizeSubdomainInput,
   validateSubdomainInput,
 } from '@/lib/serviceDomain'
+import { useNodePortAvailability, validatePortAssignment } from '@/lib/nodePortCheck'
+import { HostPortField } from '@/components/HostPortField'
 
 type WizardStep = ServiceWizardStep
 
@@ -236,6 +238,9 @@ export function CreateServiceWizard({
     const allowed = selectedProject?.environments ?? ['production', 'development']
     return (['production', 'development'] as const).filter((env) => allowed.includes(env))
   }, [selectedProject])
+
+  const portCheckEnabled = open && Boolean(nodeId) && Boolean(projectId)
+  const portStatus = useNodePortAvailability(nodeId, projectId, port, portCheckEnabled)
 
   useEffect(() => {
     if (!open) return
@@ -446,9 +451,12 @@ export function CreateServiceWizard({
       if (!branch.trim()) return 'Branch is required.'
     }
     if (current === 'configure' && template?.category === 'database') {
-      if (template.defaultPort > 0) {
-        if (!port || Number.isNaN(Number(port))) return 'Enter a valid port.'
-      }
+      const portError = validatePortAssignment(
+        port,
+        portStatus,
+        template.defaultPort > 0,
+      )
+      if (portError) return portError
       if (storageEnabled) {
         if (!storageMountPath.trim()) return 'Mount path is required.'
         const size = Number(storageSizeGb)
@@ -456,7 +464,8 @@ export function CreateServiceWizard({
       }
     }
     if (current === 'configure-runtime' && template?.category === 'git') {
-      if (!port || Number.isNaN(Number(port))) return 'Enter a valid app port.'
+      const portError = validatePortAssignment(port, portStatus, true)
+      if (portError) return portError
       const subdomainError = validateSubdomainInput(subdomain)
       if (subdomainError) return subdomainError
       if (normalizeSubdomainInput(subdomain)) {
@@ -472,6 +481,10 @@ export function CreateServiceWizard({
       }
     }
     if (current === 'review' && template) {
+      const requiresPort =
+        template.category === 'git' || (template.category === 'database' && template.defaultPort > 0)
+      const portError = validatePortAssignment(port, portStatus, requiresPort)
+      if (portError) return portError
       if (template.category === 'git') {
         const subdomainError = validateSubdomainInput(subdomain)
         if (subdomainError) return subdomainError
@@ -902,15 +915,14 @@ export function CreateServiceWizard({
                   </p>
                 </div>
               </div>
-              <div>
-                <label className={WIZARD_FIELD_LABEL}>App port</label>
-                <Input
-                  type="number"
-                  value={port}
-                  onChange={(event) => setPort(event.target.value)}
-                  placeholder="3000"
-                />
-              </div>
+              <HostPortField
+                label="App port"
+                value={port}
+                onChange={setPort}
+                placeholder="3000"
+                hint="TCP port exposed on the selected node."
+                status={portStatus}
+              />
               <div>
                 <label className={WIZARD_FIELD_LABEL}>Public subdomain</label>
                 <div className="flex items-center gap-2">
@@ -1000,14 +1012,13 @@ export function CreateServiceWizard({
                 <Input value={template.image} readOnly className="font-mono text-xs" />
               </div>
               {template.defaultPort > 0 ? (
-                <div>
-                  <label className={WIZARD_FIELD_LABEL}>Port</label>
-                  <Input
-                    type="number"
-                    value={port}
-                    onChange={(event) => setPort(event.target.value)}
-                  />
-                </div>
+                <HostPortField
+                  value={port}
+                  onChange={setPort}
+                  placeholder={String(template.defaultPort)}
+                  hint="TCP port exposed on the selected node."
+                  status={portStatus}
+                />
               ) : null}
               {envVars.length > 0 ? (
                 <div>

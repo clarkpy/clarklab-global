@@ -149,8 +149,8 @@ export default function NodesPage() {
           <p className="theme-muted text-[10px] font-semibold uppercase tracking-[0.35em]">setup guide</p>
           <h2 className="theme-heading mt-2 text-xl font-black">Add a node to your fleet</h2>
           <p className="theme-subheading mt-3 max-w-2xl text-sm leading-7">
-            Install the agent on any compatible host connected to the web! Each agent registers
-            with a one-time token, then links to the API to run deployments.
+            Add a node to get a one-command install script. Paste it on any Linux server with Docker
+            and git — the agent registers, starts as a service, and links to the API for deployments.
           </p>
           <PageButton type="button" onClick={() => setDialogOpen(true)} className="mt-4">
             <Plus className="h-4 w-4" aria-hidden="true" />

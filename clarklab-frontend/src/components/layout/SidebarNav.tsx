@@ -19,10 +19,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { ProjectStatusIcon } from '@/components/ui/StatusBadge'
 import { getCurrentUser } from '@/lib/api'
+import { useAppContext } from '@/lib/appContext'
 import { cn } from '@/lib/utils'
 import type { Project, Service } from '@/lib/domainTypes'
 import { DEPLOY_SERVICE_PATH } from '@/lib/routes'
 import { pageSidebarCtaClass } from '@/lib/pageButtonClasses'
+import { APP_DOMAIN } from '@/lib/config'
 import { SettingsSidebarNav } from '@/components/layout/SettingsSidebarNav'
 
 interface SidebarNavProps {
@@ -90,6 +92,7 @@ export function SidebarNav({
   onNavigate,
   onOpenProjectIssues,
 }: SidebarNavProps) {
+  const { appBrandName } = useAppContext()
   const navigate = useNavigate()
   const location = useLocation()
   const activeProjects = projects.filter((project) => !project.archived)
@@ -109,14 +112,14 @@ export function SidebarNav({
     <div className="flex min-h-full flex-col">
       <div className="mb-6">
         <p className="theme-muted text-[10px] font-semibold uppercase tracking-[0.42em]">
-          clarklab.tech
+          {APP_DOMAIN}
         </p>
         <div className="mt-3 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-violet-400/25 bg-violet-500/10">
             <Server className="h-4 w-4 text-violet-300 light:text-violet-700" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="theme-heading text-lg font-black leading-tight">Control plane</h2>
+            <h2 className="theme-heading text-lg font-black leading-tight">{appBrandName}</h2>
             <p className="theme-muted truncate text-xs">Signed in as {getCurrentUser()}</p>
           </div>
         </div>

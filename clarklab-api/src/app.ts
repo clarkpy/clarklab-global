@@ -25,6 +25,7 @@ import { userRoutes } from './routes/users.js'
 import { requireUser } from './middleware/auth.js'
 import { fetchTopServicesForAccessibleProjects } from './lib/serviceUsage.js'
 import { getAccessibleProjectIds, isSysadmin } from './lib/access.js'
+import { getAppBrandName } from './lib/displaySettings.js'
 import type { AppVariables } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -52,12 +53,13 @@ export function createApp() {
 
   app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }))
 
-  app.get('/api/config', (c) =>
+  app.get('/api/config', async (c) =>
     c.json({
       registrationTokenTtlMinutes: config.registrationTokenTtlMinutes,
       latestAgentVersion: config.latestAgentVersion,
       defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
       serviceBaseDomain: config.serviceBaseDomain,
+      appBrandName: await getAppBrandName(),
     }),
   )
 

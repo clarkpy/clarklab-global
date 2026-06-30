@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom'
 import { Reveal } from '@/components/layout/Reveal'
+import { SiteFooter } from '@/components/layout/SiteFooter'
+import { useAppContext } from '@/lib/appContext'
 
 export default function NotFoundPage() {
+  const { appBrandName } = useAppContext()
   return (
     <div className="theme-page flex min-h-screen flex-col items-center justify-center px-6">
-      <div className="space-y-6 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center space-y-6 text-center">
         <Reveal delay={0}>
           <div>
             <p className="theme-muted mb-2 text-sm font-semibold uppercase tracking-[0.35em]">
-              clarklab.tech
+              {appBrandName}
             </p>
             <h1 className="theme-heading mb-4 text-5xl font-black sm:text-6xl">404</h1>
             <p className="theme-subheading text-lg">
@@ -34,6 +37,7 @@ export default function NotFoundPage() {
           </div>
         </Reveal>
       </div>
+      <SiteFooter className="py-8" />
     </div>
   )
 }

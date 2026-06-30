@@ -4,6 +4,7 @@ import { LoaderCircle, LogIn, Shield } from 'lucide-react'
 import { AuthField, AuthInput } from '@/components/auth/AuthInput'
 import { ContinueAsCard } from '@/components/auth/ContinueAsCard'
 import { Reveal } from '@/components/layout/Reveal'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 import { AccentTag } from '@/components/ui/AccentTag'
 import { PageButton } from '@/components/ui/PageButton'
 import {
@@ -13,8 +14,10 @@ import {
   clearLastUser,
 } from '@/lib/api'
 import { resolvePostAuthPath } from '@/lib/authRedirect'
+import { useAppContext } from '@/lib/appContext'
 
 export default function LoginPage() {
+  const { appBrandName } = useAppContext()
   const navigate = useNavigate()
   const location = useLocation()
   const lastKnownUser = getLastKnownUser()
@@ -77,16 +80,16 @@ export default function LoginPage() {
   const inputErrorClass = error ? 'border-rose-400/40 bg-rose-500/10' : ''
 
   return (
-    <div className="theme-page">
+    <div className="theme-page flex min-h-screen flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:bg-violet-600 focus:px-4 focus:py-2 focus:rounded-full focus:z-50">
         Skip to main content
       </a>
-      <main className="relative isolate overflow-hidden" id="main">
+      <main className="relative isolate flex-1 overflow-hidden" id="main">
         <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-6 py-8 md:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:px-12 lg:py-12">
           <Reveal variant="left" delay={60} className="order-2 lg:order-1">
             <section className="max-w-2xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.45em] theme-muted">
-                clarklab.tech
+                {appBrandName}
               </p>
               <h1 className="theme-heading mt-5 text-4xl font-black tracking-tight sm:text-5xl">
                 Sign in to the homelab.
@@ -217,6 +220,7 @@ export default function LoginPage() {
           </Reveal>
         </div>
       </main>
+      <SiteFooter className="px-6 py-6" />
     </div>
   )
 }

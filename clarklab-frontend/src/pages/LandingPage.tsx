@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
 import { Reveal, RevealGroup } from '@/components/layout/Reveal'
 import { AccentTag } from '@/components/ui/AccentTag'
+import { SiteFooter } from '@/components/layout/SiteFooter'
+import { useAppContext } from '@/lib/appContext'
 import { formatUpdatedAgo, usePublicStatus } from '@/lib/usePublicStatus'
 
 export default function LandingPage() {
+  const { appBrandName } = useAppContext()
   const { apiOnline, version, summary, lastUpdated, loading, error } = usePublicStatus()
 
   const onlineNodeCount = summary?.onlineNodeCount ?? 0
@@ -23,7 +26,7 @@ export default function LandingPage() {
           <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 py-12 md:px-8 lg:px-12">
             <Reveal delay={0}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.45em] theme-muted">
-                clarklab.tech
+                {appBrandName}
               </p>
             </Reveal>
 
@@ -118,6 +121,7 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
+      <SiteFooter className="px-6 py-8" />
     </div>
   )
 }

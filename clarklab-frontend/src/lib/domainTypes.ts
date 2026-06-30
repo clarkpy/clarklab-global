@@ -215,6 +215,8 @@ export interface ClarklabConfig {
   registrationTokenTtlMinutes: number
   latestAgentVersion: string
   defaultHeartbeatIntervalSeconds: number
+  serviceBaseDomain?: string
+  appBrandName: string
 }
 
 export interface UserSettings {
@@ -227,6 +229,11 @@ export interface UserSettingsResponse extends UserSettings {
   registrationTokenTtlMax: number
   latestAgentVersion: string
   defaultHeartbeatIntervalSeconds: number
+  appBrandName: string
+}
+
+export interface DisplaySettingsResponse {
+  appBrandName: string
 }
 
 export interface NodeSetupStatus {

@@ -105,6 +105,7 @@ import {
   apiGetClarklabConfig,
   apiGetUserSettings,
   apiUpdateUserSettings,
+  apiUpdateDisplaySettings,
   apiGetGitHubConnection,
   apiGetGitHubOAuthState,
   apiCompleteGitHubOAuth,
@@ -136,6 +137,7 @@ import type {
   NodeSettingsInput,
   ClarklabConfig,
   UserSettingsResponse,
+  DisplaySettingsResponse,
   DashboardSummary,
   CreateProjectInput,
   UpdateProjectInput,
@@ -323,6 +325,12 @@ export async function updateUserSettings(settings: {
   registrationTokenTtlMinutes: number
 }): Promise<UserSettingsResponse> {
   return apiUpdateUserSettings(settings)
+}
+
+export async function updateDisplaySettings(input: {
+  appBrandName: string
+}): Promise<DisplaySettingsResponse> {
+  return apiUpdateDisplaySettings(input)
 }
 
 export type { GitHubConnectionStatus, GitHubOAuthSettingsResponse } from '@/lib/apiClient'

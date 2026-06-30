@@ -12,6 +12,7 @@ import { CreateProjectWizard } from '@/components/CreateProjectWizard'
 import { ProjectServiceIssuesDialog } from '@/components/ProjectServiceIssuesDialog'
 import { getPageTitle } from '@/lib/pageTitles'
 import { AuthLoadingScreen } from '@/components/layout/AuthLoadingScreen'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 import { buildLoginPath } from '@/lib/authRedirect'
 
 export default function AppShell() {
@@ -166,6 +167,7 @@ export default function AppShell() {
               <Outlet />
             </PageTransition>
           </main>
+          <SiteFooter className="mx-auto mt-10 max-w-7xl border-t border-white/5 pt-6 light:border-violet-200/40" />
         </div>
       </div>
       <CreateProjectWizard

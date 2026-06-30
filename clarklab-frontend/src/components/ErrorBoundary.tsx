@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { ReactNode } from 'react'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -27,7 +28,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       return (
-        <div className="theme-page flex min-h-screen items-center justify-center px-6">
+        <div className="theme-page flex min-h-screen flex-col items-center justify-center px-6">
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8 max-w-md text-center">
             <h2 className="text-3xl font-black text-white mb-4">Something went wrong</h2>
             <p className="text-sm text-slate-400 mb-6">{this.state.error?.message}</p>
@@ -38,6 +39,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               Return home
             </button>
           </div>
+          <SiteFooter className="mt-8" />
         </div>
       )
     }

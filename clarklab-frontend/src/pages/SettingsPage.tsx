@@ -16,6 +16,7 @@ import { useAppContext } from '@/lib/appContext'
 import {
   fetchUserSettings,
   updateUserSettings,
+  updateDisplaySettings,
   fetchGitHubOAuthSettings,
   updateGitHubOAuthSettings,
   type GitHubOAuthSettingsResponse,
@@ -35,7 +36,10 @@ const TOKEN_PRESETS = [
 ]
 
 export default function SettingsPage() {
-  const { themePreference, setThemePreference, resolvedTheme } = useAppContext()
+  const { themePreference, setThemePreference, resolvedTheme, appBrandName, setAppBrandName } =
+    useAppContext()
+  const [brandNameInput, setBrandNameInput] = useState(appBrandName)
+  const [displaySaving, setDisplaySaving] = useState(false)
   const [tokenTtlMinutes, setTokenTtlMinutes] = useState('1440')
   const [tokenTtlMin, setTokenTtlMin] = useState(15)
   const [tokenTtlMax, setTokenTtlMax] = useState(10080)
@@ -57,6 +61,10 @@ export default function SettingsPage() {
   }, [])
 
   useSettingsSectionScroll(handleSettingsSection)
+
+  useEffect(() => {
+    setBrandNameInput(appBrandName)
+  }, [appBrandName])
 
   useEffect(() => {
     fetchUserSettings()
@@ -94,6 +102,30 @@ export default function SettingsPage() {
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
   ]
+
+  const handleSaveDisplay = async () => {
+    const trimmed = brandNameInput.trim()
+    if (!trimmed) {
+      toast.failed('App name is required')
+      return
+    }
+    if (trimmed.length > 64) {
+      toast.failed('App name must be 64 characters or fewer')
+      return
+    }
+
+    setDisplaySaving(true)
+    try {
+      const updated = await updateDisplaySettings({ appBrandName: trimmed })
+      setAppBrandName(updated.appBrandName)
+      setBrandNameInput(updated.appBrandName)
+      toast.saved('Display settings')
+    } catch (err) {
+      toast.failed(err instanceof Error ? err.message : 'Failed to save display settings')
+    } finally {
+      setDisplaySaving(false)
+    }
+  }
 
   const handleSaveInfrastructure = async () => {
     const minutes = Math.round(Number(tokenTtlMinutes))
@@ -345,7 +377,36 @@ export default function SettingsPage() {
                   description="Customize how the dashboard appears and behaves."
                   className="h-full"
                 >
-                  <div>
+                  <SettingsField
+                    label="App name"
+                    hint="Shown in the sidebar, browser tab, and on sign-in pages."
+                  >
+                    {isSysadmin ? (
+                      <div className="space-y-3">
+                        <Input
+                          id="app-brand-name"
+                          value={brandNameInput}
+                          onChange={(e) => setBrandNameInput(e.target.value)}
+                          maxLength={64}
+                          disabled={displaySaving}
+                        />
+                        <PageButton
+                          type="button"
+                          size="sm"
+                          onClick={handleSaveDisplay}
+                          disabled={
+                            displaySaving || brandNameInput.trim() === appBrandName.trim()
+                          }
+                        >
+                          {displaySaving ? 'Saving…' : 'Save app name'}
+                        </PageButton>
+                      </div>
+                    ) : (
+                      <p className="theme-heading text-sm font-semibold">{appBrandName}</p>
+                    )}
+                  </SettingsField>
+
+                  <div className="theme-border-subtle border-t pt-5">
                     <p className="theme-heading text-sm font-semibold">Appearance</p>
                     <p className="theme-muted mt-1 text-sm">
                       {themePreference === 'system'

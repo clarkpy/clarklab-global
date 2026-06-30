@@ -14,6 +14,7 @@ import {
   getPublicGitHubOAuthSettings,
   updateGitHubOAuthSettings,
 } from '../lib/githubOAuthSettings.js'
+import { getAppBrandName, setAppBrandName } from '../lib/displaySettings.js'
 
 const githubOAuthSchema = z.object({
   clientId: z.string().trim().min(1),
@@ -28,6 +29,7 @@ settingsRoutes.use('*', requireUser)
 settingsRoutes.get('/', async (c) => {
   const userId = c.get('userId')
   const registrationTokenTtlMinutes = await getRegistrationTokenTtlForUser(userId)
+  const appBrandName = await getAppBrandName()
 
   return c.json({
     registrationTokenTtlMinutes,
@@ -36,6 +38,7 @@ settingsRoutes.get('/', async (c) => {
     registrationTokenTtlMax: REGISTRATION_TOKEN_TTL_MAX,
     latestAgentVersion: config.latestAgentVersion,
     defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
+    appBrandName,
   })
 })
 
@@ -69,7 +72,26 @@ settingsRoutes.patch('/', async (c) => {
     registrationTokenTtlMax: REGISTRATION_TOKEN_TTL_MAX,
     latestAgentVersion: config.latestAgentVersion,
     defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
+    appBrandName: await getAppBrandName(),
   })
+})
+
+settingsRoutes.patch('/display', requireSysadmin, async (c) => {
+  const body = await c.req.json<{ appBrandName?: string }>().catch(() => ({}))
+
+  if (body.appBrandName === undefined) {
+    return c.json({ error: 'No display settings to update' }, 400)
+  }
+
+  try {
+    const appBrandName = await setAppBrandName(body.appBrandName)
+    return c.json({ appBrandName })
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : 'Failed to save display settings' },
+      400,
+    )
+  }
 })
 
 settingsRoutes.get('/github-oauth', async (c) => {

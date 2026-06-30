@@ -1,5 +1,6 @@
 import type {
   UserSettingsResponse,
+  DisplaySettingsResponse,
   ClarklabConfig,
   DashboardSummary,
   Node,
@@ -108,6 +109,15 @@ export async function apiUpdateUserSettings(
   return apiFetch<UserSettingsResponse>('/api/settings', {
     method: 'PATCH',
     body: JSON.stringify(settings),
+  })
+}
+
+export async function apiUpdateDisplaySettings(input: {
+  appBrandName: string
+}): Promise<DisplaySettingsResponse> {
+  return apiFetch<DisplaySettingsResponse>('/api/settings/display', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
   })
 }
 

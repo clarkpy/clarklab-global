@@ -5,14 +5,14 @@ describe('buildCaddyfile', () => {
   it('creates HTTP host routes for traffic arriving from Cloudflare Tunnel', () => {
     const caddyfile = buildCaddyfile([
       {
-        hostname: 'test.clarklab.tech',
+        hostname: 'test.example.com',
         upstream: '192.168.1.10:3000',
       },
     ])
 
-    expect(caddyfile).toContain('http://test.clarklab.tech {')
+    expect(caddyfile).toContain('http://test.example.com {')
     expect(caddyfile).toContain('\treverse_proxy 192.168.1.10:3000')
     expect(caddyfile).toContain(':80 {')
-    expect(caddyfile).not.toContain('\ntest.clarklab.tech {')
+    expect(caddyfile).not.toContain('\ntest.example.com {')
   })
 })

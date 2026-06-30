@@ -1,7 +1,7 @@
 import { apiFetch } from '@/lib/httpClient'
+import { SERVICE_BASE_DOMAIN } from '@/lib/config'
 
-export const SERVICE_BASE_DOMAIN =
-  import.meta.env.VITE_CLARKLAB_SERVICE_BASE_DOMAIN?.trim().toLowerCase() ?? 'clarklab.tech'
+export { SERVICE_BASE_DOMAIN }
 
 const SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 

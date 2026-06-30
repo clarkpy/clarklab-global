@@ -2,7 +2,7 @@ import { Menu, X } from 'lucide-react'
 import { useAppContext } from '@/lib/appContext'
 
 export function MobileNavBar({ title }: { title?: string }) {
-  const { sidebarOpen, setSidebarOpen } = useAppContext()
+  const { sidebarOpen, setSidebarOpen, appBrandName } = useAppContext()
 
   return (
     <header className="theme-shell-bg fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/10 px-4 py-3 backdrop-blur-md light:border-slate-200/80 lg:hidden">
@@ -16,7 +16,7 @@ export function MobileNavBar({ title }: { title?: string }) {
       </button>
       <div className="min-w-0 text-center">
         <p className="theme-heading truncate text-sm font-bold">{title ?? 'Dashboard'}</p>
-        <p className="theme-muted text-[10px] font-semibold uppercase tracking-[0.35em]">clarklab.tech</p>
+        <p className="theme-muted text-[10px] font-semibold uppercase tracking-[0.35em]">{appBrandName}</p>
       </div>
       <div className="w-10" aria-hidden="true" />
     </header>

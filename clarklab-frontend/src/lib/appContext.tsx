@@ -7,6 +7,8 @@ import {
   type ThemePreference,
   type ResolvedTheme,
 } from '@/lib/theme'
+import { DEFAULT_APP_BRAND_NAME } from '@/lib/config'
+import { fetchClarklabConfig } from '@/lib/api'
 
 interface AppContextType {
   sidebarOpen: boolean
@@ -16,6 +18,8 @@ interface AppContextType {
   resolvedTheme: ResolvedTheme
   mobileDetailTitle: string | null
   setMobileDetailTitle: (title: string | null) => void
+  appBrandName: string
+  setAppBrandName: (name: string) => void
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -23,6 +27,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileDetailTitle, setMobileDetailTitle] = useState<string | null>(null)
+  const [appBrandName, setAppBrandName] = useState(DEFAULT_APP_BRAND_NAME)
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => {
     const preference = readThemePreference()
     applyTheme(resolveTheme(preference))
@@ -39,6 +44,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setResolvedTheme(resolved)
     applyTheme(resolved)
   }
+
+  useEffect(() => {
+    fetchClarklabConfig()
+      .then((config) => {
+        if (config.appBrandName?.trim()) {
+          setAppBrandName(config.appBrandName.trim())
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    document.title = appBrandName
+  }, [appBrandName])
 
   useEffect(() => {
     if (themePreference !== 'system') return
@@ -64,6 +83,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         resolvedTheme,
         mobileDetailTitle,
         setMobileDetailTitle,
+        appBrandName,
+        setAppBrandName,
       }}
     >
       {children}
@@ -73,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useAppContext() {
   const context = useContext(AppContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAppContext must be used within AppProvider')
   }
   return context

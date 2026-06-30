@@ -1,5 +1,11 @@
 # ClarkLab
 
+
+## Notice
+
+> This project is still in alpha so the live demo is limited, you can build the full project using this source code and a youtube preview link is available here: 
+> https://youtu.be/lLkWigWAXwQ
+
 ### Quick start
 
 ```bash
@@ -8,8 +14,8 @@ npm install
 npm run dev:stack
 ```
 
-- Dashboard: http://localhost:5173
-- API: http://localhost:3000
+- Dashboard: [http://localhost:5173](http://localhost:5173)
+- API: [http://localhost:3000](http://localhost:3000)
 
 ### First account
 
@@ -25,9 +31,11 @@ split-subdomain deployments (`app.clarklab.tech` + `api.clarklab.tech`):
 - Set `VITE_API_URL=https://api.clarklab.tech` on the frontend build
 - Use strong values for `JWT_SECRET` and `INTEGRATION_ENCRYPTION_KEY`
 
+
+
 ### Secrets
 
-Never commit `.env` or `agent.yaml`. Copy [`.env.example`](.env.example) to `.env` at the repo root and fill in values locally. The root `.gitignore` excludes env files, keys, and agent credentials.
+Never commit `.env` or `agent.yaml`. Copy `[.env.example](.env.example)` to `.env` at the repo root and fill in values locally. The root `.gitignore` excludes env files, keys, and agent credentials.
 
 ### Health check
 
@@ -37,7 +45,7 @@ curl http://localhost:3000/health
 
 Expected data: `{"status":"ok","version":"0.1.0"}`
 
-If this fails, make sure Postgres is started (`docker compose up -d postgres`), then contact aj@clarklab.tech
+If this fails, make sure Postgres is started (`docker compose up -d postgres`), then contact [aj@clarklab.tech](mailto:aj@clarklab.tech)
 
 ### Project layout
 
@@ -49,3 +57,4 @@ clarklab-global/
 ├── scripts/install.sh  Agent installer
 └── docker-compose.yml  Postgres + API
 ```
+

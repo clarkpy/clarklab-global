@@ -14,7 +14,7 @@ import {
   getPublicGitHubOAuthSettings,
   updateGitHubOAuthSettings,
 } from '../lib/githubOAuthSettings.js'
-import { getAppBrandName, setAppBrandName } from '../lib/displaySettings.js'
+import { getAppBrandName, getAppDomain, setAppBrandName, setAppDomain } from '../lib/displaySettings.js'
 
 const githubOAuthSchema = z.object({
   clientId: z.string().trim().min(1),
@@ -30,6 +30,7 @@ settingsRoutes.get('/', async (c) => {
   const userId = c.get('userId')
   const registrationTokenTtlMinutes = await getRegistrationTokenTtlForUser(userId)
   const appBrandName = await getAppBrandName()
+  const appDomain = await getAppDomain()
 
   return c.json({
     registrationTokenTtlMinutes,
@@ -39,6 +40,7 @@ settingsRoutes.get('/', async (c) => {
     latestAgentVersion: config.latestAgentVersion,
     defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
     appBrandName,
+    appDomain,
   })
 })
 
@@ -73,21 +75,29 @@ settingsRoutes.patch('/', async (c) => {
     latestAgentVersion: config.latestAgentVersion,
     defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
     appBrandName: await getAppBrandName(),
+    appDomain: await getAppDomain(),
   })
 })
 
 settingsRoutes.patch('/display', requireSysadmin, async (c) => {
-  const body = await c.req.json<{ appBrandName?: string }>().catch(
-    (): { appBrandName?: string } => ({}),
+  const body = await c.req.json<{ appBrandName?: string; appDomain?: string }>().catch(
+    (): { appBrandName?: string; appDomain?: string } => ({}),
   )
 
-  if (body.appBrandName === undefined) {
+  if (body.appBrandName === undefined && body.appDomain === undefined) {
     return c.json({ error: 'No display settings to update' }, 400)
   }
 
   try {
-    const appBrandName = await setAppBrandName(body.appBrandName)
-    return c.json({ appBrandName })
+    let appBrandName = await getAppBrandName()
+    let appDomain = await getAppDomain()
+    if (body.appBrandName !== undefined) {
+      appBrandName = await setAppBrandName(body.appBrandName)
+    }
+    if (body.appDomain !== undefined) {
+      appDomain = await setAppDomain(body.appDomain)
+    }
+    return c.json({ appBrandName, appDomain })
   } catch (err) {
     return c.json(
       { error: err instanceof Error ? err.message : 'Failed to save display settings' },

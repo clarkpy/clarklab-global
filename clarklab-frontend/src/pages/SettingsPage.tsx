@@ -36,9 +36,10 @@ const TOKEN_PRESETS = [
 ]
 
 export default function SettingsPage() {
-  const { themePreference, setThemePreference, resolvedTheme, appBrandName, setAppBrandName } =
+  const { themePreference, setThemePreference, resolvedTheme, appBrandName, setAppBrandName, appDomain, setAppDomain } =
     useAppContext()
   const [brandNameInput, setBrandNameInput] = useState(appBrandName)
+  const [siteUrlInput, setSiteUrlInput] = useState(appDomain)
   const [displaySaving, setDisplaySaving] = useState(false)
   const [tokenTtlMinutes, setTokenTtlMinutes] = useState('1440')
   const [tokenTtlMin, setTokenTtlMin] = useState(15)
@@ -65,6 +66,10 @@ export default function SettingsPage() {
   useEffect(() => {
     setBrandNameInput(appBrandName)
   }, [appBrandName])
+
+  useEffect(() => {
+    setSiteUrlInput(appDomain)
+  }, [appDomain])
 
   useEffect(() => {
     fetchUserSettings()
@@ -104,21 +109,35 @@ export default function SettingsPage() {
   ]
 
   const handleSaveDisplay = async () => {
-    const trimmed = brandNameInput.trim()
-    if (!trimmed) {
+    const trimmedName = brandNameInput.trim()
+    const trimmedDomain = siteUrlInput.trim().toLowerCase()
+    if (!trimmedName) {
       toast.failed('App name is required')
       return
     }
-    if (trimmed.length > 64) {
+    if (trimmedName.length > 64) {
       toast.failed('App name must be 64 characters or fewer')
+      return
+    }
+    if (!trimmedDomain) {
+      toast.failed('Site URL is required')
+      return
+    }
+    if (trimmedDomain.length > 128) {
+      toast.failed('Site URL must be 128 characters or fewer')
       return
     }
 
     setDisplaySaving(true)
     try {
-      const updated = await updateDisplaySettings({ appBrandName: trimmed })
+      const updated = await updateDisplaySettings({
+        appBrandName: trimmedName,
+        appDomain: trimmedDomain,
+      })
       setAppBrandName(updated.appBrandName)
       setBrandNameInput(updated.appBrandName)
+      setAppDomain(updated.appDomain)
+      setSiteUrlInput(updated.appDomain)
       toast.saved('Display settings')
     } catch (err) {
       toast.failed(err instanceof Error ? err.message : 'Failed to save display settings')
@@ -126,6 +145,10 @@ export default function SettingsPage() {
       setDisplaySaving(false)
     }
   }
+
+  const displayUnchanged =
+    brandNameInput.trim() === appBrandName.trim() &&
+    siteUrlInput.trim().toLowerCase() === appDomain.trim().toLowerCase()
 
   const handleSaveInfrastructure = async () => {
     const minutes = Math.round(Number(tokenTtlMinutes))
@@ -382,29 +405,46 @@ export default function SettingsPage() {
                     hint="Shown in the sidebar, browser tab, and on sign-in pages."
                   >
                     {isSysadmin ? (
-                      <div className="space-y-3">
-                        <Input
-                          id="app-brand-name"
-                          value={brandNameInput}
-                          onChange={(e) => setBrandNameInput(e.target.value)}
-                          maxLength={64}
-                          disabled={displaySaving}
-                        />
-                        <PageButton
-                          type="button"
-                          size="sm"
-                          onClick={handleSaveDisplay}
-                          disabled={
-                            displaySaving || brandNameInput.trim() === appBrandName.trim()
-                          }
-                        >
-                          {displaySaving ? 'Saving…' : 'Save app name'}
-                        </PageButton>
-                      </div>
+                      <Input
+                        id="app-brand-name"
+                        value={brandNameInput}
+                        onChange={(e) => setBrandNameInput(e.target.value)}
+                        maxLength={64}
+                        disabled={displaySaving}
+                      />
                     ) : (
                       <p className="theme-heading text-sm font-semibold">{appBrandName}</p>
                     )}
                   </SettingsField>
+
+                  <SettingsField
+                    label="Site URL"
+                    hint="Shown above the app name in the sidebar. Enter a hostname only, e.g. clarklab.tech."
+                  >
+                    {isSysadmin ? (
+                      <Input
+                        id="app-site-url"
+                        value={siteUrlInput}
+                        onChange={(e) => setSiteUrlInput(e.target.value)}
+                        maxLength={128}
+                        placeholder="clarklab.tech"
+                        disabled={displaySaving}
+                      />
+                    ) : (
+                      <p className="theme-heading text-sm font-semibold">{appDomain}</p>
+                    )}
+                  </SettingsField>
+
+                  {isSysadmin ? (
+                    <PageButton
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveDisplay}
+                      disabled={displaySaving || displayUnchanged}
+                    >
+                      {displaySaving ? 'Saving…' : 'Save display settings'}
+                    </PageButton>
+                  ) : null}
 
                   <div className="theme-border-subtle border-t pt-5">
                     <p className="theme-heading text-sm font-semibold">Appearance</p>

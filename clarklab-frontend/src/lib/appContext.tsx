@@ -7,7 +7,7 @@ import {
   type ThemePreference,
   type ResolvedTheme,
 } from '@/lib/theme'
-import { DEFAULT_APP_BRAND_NAME } from '@/lib/config'
+import { DEFAULT_APP_BRAND_NAME, DEFAULT_APP_DOMAIN } from '@/lib/config'
 import { fetchClarklabConfig } from '@/lib/api'
 
 interface AppContextType {
@@ -20,6 +20,8 @@ interface AppContextType {
   setMobileDetailTitle: (title: string | null) => void
   appBrandName: string
   setAppBrandName: (name: string) => void
+  appDomain: string
+  setAppDomain: (domain: string) => void
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -28,6 +30,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileDetailTitle, setMobileDetailTitle] = useState<string | null>(null)
   const [appBrandName, setAppBrandName] = useState(DEFAULT_APP_BRAND_NAME)
+  const [appDomain, setAppDomain] = useState(DEFAULT_APP_DOMAIN)
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => {
     const preference = readThemePreference()
     applyTheme(resolveTheme(preference))
@@ -50,6 +53,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then((config) => {
         if (config.appBrandName?.trim()) {
           setAppBrandName(config.appBrandName.trim())
+        }
+        if (config.appDomain?.trim()) {
+          setAppDomain(config.appDomain.trim().toLowerCase())
         }
       })
       .catch(() => {})
@@ -85,6 +91,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setMobileDetailTitle,
         appBrandName,
         setAppBrandName,
+        appDomain,
+        setAppDomain,
       }}
     >
       {children}

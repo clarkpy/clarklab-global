@@ -395,7 +395,7 @@ nodeRoutes.post('/:nodeId/reconnect', async (c) => {
 
   return c.json({
     ...payload,
-    message: `Reconnect token issues for ${row.name as string}. Run the register command on the host, then start the agent. Existing agent credentials are invalidated until registration completes.`,
+    message: `Reconnect token issued for ${row.name as string}. Run the register command on the host, then start the agent. Existing agent credentials are invalidated until registration completes.`,
   })
 })
 

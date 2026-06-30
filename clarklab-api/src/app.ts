@@ -22,7 +22,7 @@ import { userRoutes } from './routes/users.js'
 import { requireUser } from './middleware/auth.js'
 import { fetchTopServicesForAccessibleProjects } from './lib/serviceUsage.js'
 import { getAccessibleProjectIds, isSysadmin } from './lib/access.js'
-import { getAppBrandName } from './lib/displaySettings.js'
+import { getAppBrandName, getAppDomain } from './lib/displaySettings.js'
 import type { AppVariables } from './types.js'
 
 export function createApp() {
@@ -55,6 +55,7 @@ export function createApp() {
       defaultHeartbeatIntervalSeconds: config.defaultHeartbeatIntervalSeconds,
       serviceBaseDomain: config.serviceBaseDomain,
       appBrandName: await getAppBrandName(),
+      appDomain: await getAppDomain(),
     }),
   )
 

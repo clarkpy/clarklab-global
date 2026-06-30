@@ -217,6 +217,7 @@ export interface ClarklabConfig {
   defaultHeartbeatIntervalSeconds: number
   serviceBaseDomain?: string
   appBrandName: string
+  appDomain: string
 }
 
 export interface UserSettings {
@@ -230,10 +231,12 @@ export interface UserSettingsResponse extends UserSettings {
   latestAgentVersion: string
   defaultHeartbeatIntervalSeconds: number
   appBrandName: string
+  appDomain: string
 }
 
 export interface DisplaySettingsResponse {
   appBrandName: string
+  appDomain: string
 }
 
 export interface NodeSetupStatus {

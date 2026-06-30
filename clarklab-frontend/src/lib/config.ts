@@ -12,8 +12,10 @@ export const DEFAULT_APP_BRAND_NAME =
 
 export const APP_BRAND_NAME = DEFAULT_APP_BRAND_NAME
 
-export const APP_DOMAIN =
+export const DEFAULT_APP_DOMAIN =
   import.meta.env.VITE_APP_DOMAIN?.trim().toLowerCase() || 'localhost'
+
+export const APP_DOMAIN = DEFAULT_APP_DOMAIN
 
 export const HEARTBEAT_INTERVAL_DEFAULT = 30
 export const HEARTBEAT_INTERVAL_MIN = 5

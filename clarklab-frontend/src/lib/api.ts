@@ -328,7 +328,8 @@ export async function updateUserSettings(settings: {
 }
 
 export async function updateDisplaySettings(input: {
-  appBrandName: string
+  appBrandName?: string
+  appDomain?: string
 }): Promise<DisplaySettingsResponse> {
   return apiUpdateDisplaySettings(input)
 }

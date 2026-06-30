@@ -113,7 +113,8 @@ export async function apiUpdateUserSettings(
 }
 
 export async function apiUpdateDisplaySettings(input: {
-  appBrandName: string
+  appBrandName?: string
+  appDomain?: string
 }): Promise<DisplaySettingsResponse> {
   return apiFetch<DisplaySettingsResponse>('/api/settings/display', {
     method: 'PATCH',

@@ -1,0 +1,1 @@
+ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS app_domain TEXT NOT NULL DEFAULT '';

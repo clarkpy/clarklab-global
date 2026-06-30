@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils'
 import type { Project, Service } from '@/lib/domainTypes'
 import { DEPLOY_SERVICE_PATH } from '@/lib/routes'
 import { pageSidebarCtaClass } from '@/lib/pageButtonClasses'
-import { APP_DOMAIN } from '@/lib/config'
 import { SettingsSidebarNav } from '@/components/layout/SettingsSidebarNav'
 
 interface SidebarNavProps {
@@ -92,7 +91,7 @@ export function SidebarNav({
   onNavigate,
   onOpenProjectIssues,
 }: SidebarNavProps) {
-  const { appBrandName } = useAppContext()
+  const { appBrandName, appDomain } = useAppContext()
   const navigate = useNavigate()
   const location = useLocation()
   const activeProjects = projects.filter((project) => !project.archived)
@@ -112,7 +111,7 @@ export function SidebarNav({
     <div className="flex min-h-full flex-col">
       <div className="mb-6">
         <p className="theme-muted text-[10px] font-semibold uppercase tracking-[0.42em]">
-          {APP_DOMAIN}
+          {appDomain}
         </p>
         <div className="mt-3 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-violet-400/25 bg-violet-500/10">

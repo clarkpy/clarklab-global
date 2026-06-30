@@ -31,6 +31,7 @@ import {
   normalizeDataRoot,
 } from '../lib/nodeDataRoot.js'
 import { buildDevLocalCommands } from '../lib/devAgentCommands.js'
+import { buildAgentInstallCommand } from '../lib/agentInstallCommand.js'
 import { getNodeReleaseForUser } from '../lib/platformRelease.js'
 import { getActiveAgentUpdateTaskForNode } from '../lib/agentUpdateTasks.js'
 import { formatServiceAccessUrl, isUsableNodeIp } from '../lib/serviceUrl.js'
@@ -40,7 +41,7 @@ import { redactSecrets } from '../lib/redactSecrets.js'
 import { appendAgentLog } from '../lib/agentLogs.js'
 
 function buildInstallCommand(token: string): string {
-  return `curl -fsSL ${config.agentInstallUrl} | sudo bash -s -- --token ${token} --server ${config.serverUrl}`
+  return buildAgentInstallCommand(config.agentInstallUrl, config.serverUrl, token)
 }
 
 function formatTokenTtl(minutes: number): string {

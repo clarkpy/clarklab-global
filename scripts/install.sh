@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 if [ -z "${BASH_VERSION:-}" ]; then
-  exec /usr/bin/env bash -s -- "$@"
+  echo "This install requires bash. Download it first, then run the below with bash:" >&2
+  echo "  curl -fsSL <install-url> -o /tmp/clarklab-install.sh" >&2
+  echo "  sudo bash /tmp/clarklab-install.sh --token <token> --server <url>" >&2
+  exit 1
 fi
 set -euo pipefail
 

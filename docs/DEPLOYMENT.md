@@ -150,10 +150,13 @@ On each node (can be the same Debian box as the API):
 2. As root:
 
 ```bash
-curl -fsSL https://api.clarklab.tech/agent/install.sh | sudo bash -s -- \
+curl -fsSL https://api.clarklab.tech/agent/install.sh -o /tmp/clarklab-install.sh
+bash /tmp/clarklab-install.sh \
   --token <registration-token> \
   --server https://api.clarklab.tech
 ```
+
+Download the script first instead of piping into `sudo` — `sudo` reads from stdin and will consume a piped installer before it runs.
 
 1. Confirm: `systemctl status clarklab-agent`
 

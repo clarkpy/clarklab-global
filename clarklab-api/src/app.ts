@@ -1,13 +1,10 @@
 import { Hono } from 'hono'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { corsMiddleware } from './middleware/cors.js'
 import { secureHeaders } from 'hono/secure-headers'
 import { registerErrorHandler } from './middleware/errorHandler.js'
 import { config } from './config.js'
 import { pool } from './db/pool.js'
-import { packAgentSourceArchive, readAgentSourceFile, readInstallHelperScript } from './lib/agentSource.js'
+import { packAgentSourceArchive, readAgentSourceFile, readInstallHelperScript, readInstallScript } from './lib/agentSource.js'
 import { authRoutes } from './routes/auth.js'
 import { settingsRoutes } from './routes/settings.js'
 import { nodeRoutes, agentRoutes, markStaleNodesOffline } from './routes/nodes.js'
@@ -27,8 +24,6 @@ import { fetchTopServicesForAccessibleProjects } from './lib/serviceUsage.js'
 import { getAccessibleProjectIds, isSysadmin } from './lib/access.js'
 import { getAppBrandName } from './lib/displaySettings.js'
 import type { AppVariables } from './types.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export function createApp() {
   const app = new Hono<{ Variables: AppVariables }>()
@@ -64,9 +59,15 @@ export function createApp() {
   )
 
   app.get('/agent/install.sh', (c) => {
-    const scriptPath = join(__dirname, '../../scripts/install.sh')
-    const script = readFileSync(scriptPath, 'utf8')
-    return c.text(script, 200, { 'Content-Type': 'text/plain' })
+    try {
+      const script = readInstallScript()
+      return c.text(script, 200, { 'Content-Type': 'text/plain' })
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'Install script unavailable' },
+        500,
+      )
+    }
   })
 
   app.get('/agent/scripts/:filename', (c) => {

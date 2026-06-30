@@ -38,6 +38,12 @@ export function readInstallHelperScript(filename: string): string {
   return readFileSync(scriptPath, 'utf8')
 }
 
+export function readInstallScript(): string {
+  const scriptPath = join(resolveScriptsDir(), 'install.sh')
+  accessSync(scriptPath, constants.R_OK)
+  return readFileSync(scriptPath, 'utf8')
+}
+
 export function resolveAgentSourceDir(): string {
   const candidates = [
     join(moduleDir, '../../clarklab-agent'),

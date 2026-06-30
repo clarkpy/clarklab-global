@@ -68,10 +68,27 @@ docker compose -f docker-compose.prod.yml up -d
 
 This starts Postgres, the API, and the Caddy edge proxy. The API writes `[deploy/caddy/Caddyfile](deploy/caddy/Caddyfile)` when services with subdomains deploy.
 
-Verify:
+Verify the tunnel path works:
 
 ```bash
+curl http://127.0.0.1:3000/health
 curl https://api.clarklab.tech/health
+```
+
+If the public URL returns **502**, the API is not reachable yet. Check the API container and tunnel:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs api --tail 50
+systemctl status clarklab-tunnel
+```
+
+On the same host as the API repo, you can install the agent from the local script while debugging:
+
+```bash
+bash /opt/clarklab/scripts/install.sh \
+  --token <registration-token> \
+  --server https://api.clarklab.tech
 ```
 
 Migrations run on API startup. Schedule backups:

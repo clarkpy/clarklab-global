@@ -77,7 +77,9 @@ settingsRoutes.patch('/', async (c) => {
 })
 
 settingsRoutes.patch('/display', requireSysadmin, async (c) => {
-  const body = await c.req.json<{ appBrandName?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ appBrandName?: string }>().catch(
+    (): { appBrandName?: string } => ({}),
+  )
 
   if (body.appBrandName === undefined) {
     return c.json({ error: 'No display settings to update' }, 400)

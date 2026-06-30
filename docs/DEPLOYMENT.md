@@ -10,7 +10,7 @@ Deploy the React dashboard on a provider such as **Netlify** or **Vercel** (`app
 | Domain on Cloudflare   | DNS for tunnel + Vercel CNAME                                        |
 | Vercel account         | Linked to this Git repository                                        |
 | Debian + Docker Engine | `docker compose` v2                                                  |
-| Agent host tools       | `git`, `curl`, Rust (`rustup`), Docker; `install.sh` adds `nixpacks` |
+| Agent host tools       | `git`, `curl`, Docker; `install.sh` adds `nixpacks`, Rust (`rustup`), and `build-essential` |
 
 
 I recommend generating secrets locally for increased security. You can generate them locally using the commands below 😊
@@ -64,9 +64,10 @@ cp .env.production.example .env
 # Edit .env before running!!
 docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml up -d
+systemctl restart clarklab-tunnel
 ```
 
-This starts Postgres, the API, and the Caddy edge proxy. The API writes `[deploy/caddy/Caddyfile](deploy/caddy/Caddyfile)` when services with subdomains deploy.
+This starts Postgres, the API, and the Caddy edge proxy. Restart the tunnel after the API container so Cloudflare does not keep returning **502** from errors logged while the API was down. The API writes `[deploy/caddy/Caddyfile](deploy/caddy/Caddyfile)` when services with subdomains deploy.
 
 Verify the tunnel path works:
 
@@ -81,7 +82,11 @@ If the public URL returns **502**, the API is not reachable yet. Check the API c
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs api --tail 50
 systemctl status clarklab-tunnel
+systemctl restart clarklab-tunnel
+curl https://api.clarklab.tech/health
 ```
+
+Tunnel logs like `Unable to reach the origin service` at the same time as `docker compose up` usually mean the API was still starting. Local `curl http://127.0.0.1:3000/health` succeeding while the public URL fails is the same pattern — restart the tunnel after the API is healthy.
 
 On the same host as the API repo, you can install the agent from the local script while debugging:
 

@@ -7,6 +7,23 @@ SERVICE_USER="${SERVICE_USER:-clarklab}"
 export RUSTUP_HOME CARGO_HOME
 export PATH="${CARGO_HOME}/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 
+ensure_build_tools() {
+  if command -v cc >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Installing C compiler and build tools (required for Rust builds)..."
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config libssl-dev
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y gcc gcc-c++ make openssl-devel pkgconfig
+  else
+    echo "Install a C toolchain (build-essential on Debian) then re-run install.sh."
+    exit 1
+  fi
+}
+
 link_binaries() {
   mkdir -p /usr/local/bin
   if [[ -x "${CARGO_HOME}/bin/cargo" ]]; then
@@ -24,10 +41,13 @@ toolchain_ready() {
   cargo --version >/dev/null 2>&1
 }
 
+ensure_build_tools
+
 if [[ ! -x "${CARGO_HOME}/bin/rustup" ]]; then
   echo "Installing Rust toolchain for the Clarklab agent (system-wide)..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    env RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" sh -s -- -y --no-modify-path --default-toolchain stable
+    env RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" RUSTUP_INIT_SKIP_PATH_CHECK=yes \
+    sh -s -- -y --no-modify-path --default-toolchain stable
 fi
 
 link_binaries

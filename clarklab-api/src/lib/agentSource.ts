@@ -5,6 +5,39 @@ import { fileURLToPath } from 'node:url'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
+const INSTALL_HELPER_SCRIPTS = new Set([
+  'ensure-system-rust.sh',
+  'clarklab-install-agent-binary.sh',
+])
+
+export function resolveScriptsDir(): string {
+  const candidates = [
+    join(moduleDir, '../../../scripts'),
+    join(moduleDir, '../../scripts'),
+  ]
+
+  for (const dir of candidates) {
+    try {
+      accessSync(join(dir, 'install.sh'), constants.R_OK)
+      return dir
+    } catch {
+      continue
+    }
+  }
+
+  throw new Error('Scripts directory not found')
+}
+
+export function readInstallHelperScript(filename: string): string {
+  if (!INSTALL_HELPER_SCRIPTS.has(filename)) {
+    throw new Error('Not found')
+  }
+
+  const scriptPath = join(resolveScriptsDir(), filename)
+  accessSync(scriptPath, constants.R_OK)
+  return readFileSync(scriptPath, 'utf8')
+}
+
 export function resolveAgentSourceDir(): string {
   const candidates = [
     join(moduleDir, '../../clarklab-agent'),

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec /usr/bin/env bash -s -- "$@"
+fi
 set -euo pipefail
 
 TOKEN=""
@@ -8,9 +11,19 @@ INSTALL_DIR="/usr/local/bin"
 CONFIG_DIR="/etc/clarklab"
 SERVICE_USER="clarklab"
 SERVICE_NAME="clarklab-agent"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUSTUP_HOME="/usr/local/rustup"
 CARGO_HOME="/usr/local/cargo"
+
+resolve_script_dir() {
+  local source="${BASH_SOURCE[0]:-$0}"
+  if [[ -f "$source" ]]; then
+    cd "$(dirname "$source")" && pwd
+    return 0
+  fi
+  echo ""
+}
+
+SCRIPT_DIR="$(resolve_script_dir)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,14 +39,21 @@ if [[ -z "$TOKEN" || -z "$SERVER" ]]; then
   exit 1
 fi
 
-ARCH="$(uname -m)"
-case "$ARCH" in
-  x86_64) TARGET="x86_64-unknown-linux-gnu" ;;
-  aarch64|arm64) TARGET="aarch64-unknown-linux-gnu" ;;
-  *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-esac
+resolve_helper_script() {
+  local name="$1"
+  if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/${name}" ]]; then
+    echo "${SCRIPT_DIR}/${name}"
+    return 0
+  fi
 
-mkdir -p "$CONFIG_DIR"
+  local dest
+  dest="$(mktemp "/tmp/clarklab-${name}.XXXXXX")"
+  curl -fsSL "${SERVER%/}/agent/scripts/${name}" -o "$dest"
+  chmod +x "$dest"
+  echo "$dest"
+}
+
+resolve_helper_script() {
 mkdir -p "$INSTALL_DIR"
 
 if ! id "$SERVICE_USER" >/dev/null 2>&1; then
@@ -88,16 +108,20 @@ else
 fi
 
 echo "Preparing Rust toolchain for in-place agent updates..."
-SERVICE_USER="$SERVICE_USER" bash "$SCRIPT_DIR/ensure-system-rust.sh"
+RUST_HELPER="$(resolve_helper_script ensure-system-rust.sh)"
+SERVICE_USER="$SERVICE_USER" bash "$RUST_HELPER"
 
 echo "Building Clarklab agent from source..."
 
-AGENT_SRC="${SCRIPT_DIR}/../clarklab-agent"
+AGENT_SRC=""
+if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../clarklab-agent/Cargo.toml" ]]; then
+  AGENT_SRC="${SCRIPT_DIR}/../clarklab-agent"
+fi
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-if [[ -f "${AGENT_SRC}/Cargo.toml" ]]; then
+if [[ -n "$AGENT_SRC" ]]; then
   cp -R "${AGENT_SRC}/." "$TMPDIR/"
 else
   echo "Downloading agent source from ${SERVER}..."
@@ -152,7 +176,8 @@ systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
-install -m 755 "$SCRIPT_DIR/clarklab-install-agent-binary.sh" /usr/local/sbin/clarklab-install-agent-binary
+BINARY_HELPER="$(resolve_helper_script clarklab-install-agent-binary.sh)"
+install -m 755 "$BINARY_HELPER" /usr/local/sbin/clarklab-install-agent-binary
 mkdir -p /etc/sudoers.d
 cat > /etc/sudoers.d/clarklab-agent <<EOF
 ${SERVICE_USER} ALL=(root) NOPASSWD: /usr/local/sbin/clarklab-install-agent-binary

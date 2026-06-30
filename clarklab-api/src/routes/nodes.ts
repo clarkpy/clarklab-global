@@ -40,7 +40,7 @@ import { redactSecrets } from '../lib/redactSecrets.js'
 import { appendAgentLog } from '../lib/agentLogs.js'
 
 function buildInstallCommand(token: string): string {
-  return `curl -fsSL ${config.agentInstallUrl} | sudo sh -s -- --token ${token} --server ${config.serverUrl}`
+  return `curl -fsSL ${config.agentInstallUrl} | sudo bash -s -- --token ${token} --server ${config.serverUrl}`
 }
 
 function formatTokenTtl(minutes: number): string {

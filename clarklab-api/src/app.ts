@@ -7,7 +7,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import { registerErrorHandler } from './middleware/errorHandler.js'
 import { config } from './config.js'
 import { pool } from './db/pool.js'
-import { packAgentSourceArchive, readAgentSourceFile } from './lib/agentSource.js'
+import { packAgentSourceArchive, readAgentSourceFile, readInstallHelperScript } from './lib/agentSource.js'
 import { authRoutes } from './routes/auth.js'
 import { settingsRoutes } from './routes/settings.js'
 import { nodeRoutes, agentRoutes, markStaleNodesOffline } from './routes/nodes.js'
@@ -67,6 +67,15 @@ export function createApp() {
     const scriptPath = join(__dirname, '../../scripts/install.sh')
     const script = readFileSync(scriptPath, 'utf8')
     return c.text(script, 200, { 'Content-Type': 'text/plain' })
+  })
+
+  app.get('/agent/scripts/:filename', (c) => {
+    try {
+      const script = readInstallHelperScript(c.req.param('filename'))
+      return c.text(script, 200, { 'Content-Type': 'text/plain' })
+    } catch {
+      return c.json({ error: 'Not found' }, 404)
+    }
   })
 
   app.get('/agent/source.tar.gz', (c) => {

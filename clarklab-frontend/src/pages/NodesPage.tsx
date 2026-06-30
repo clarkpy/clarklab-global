@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo, type MouseEvent } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Server, Plus, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Server, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { AccentTag } from '@/components/ui/AccentTag'
 import { NodeStatusBadge } from '@/components/ui/StatusBadge'
@@ -13,10 +13,8 @@ import { PageButton } from '@/components/ui/PageButton'
 import { PageSearchInput } from '@/components/ui/PageSearchInput'
 import { ListPageSkeleton } from '@/components/ListPageSkeleton'
 import { RelativeTime } from '@/components/RelativeTime'
-import { savePendingSetup } from '@/lib/pendingNodeSetup'
-import { fetchNodes, reconnectNodeAsync, type Node } from '@/lib/api'
+import { fetchNodes, type Node } from '@/lib/api'
 import { getFetchErrorMessage } from '@/lib/fetchError'
-import { toast } from '@/lib/toast'
 import { useNodesLiveRefresh } from '@/lib/useNodesLiveRefresh'
 
 export default function NodesPage() {
@@ -54,8 +52,6 @@ export default function NodesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const [reconnectingId, setReconnectingId] = useState<string | null>(null)
 
   const refreshNodes = useCallback(() => {
     fetchNodes()
@@ -108,23 +104,6 @@ export default function NodesPage() {
       requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     }
   }, [location.hash])
-
-  const handleReconnect = async (node: Node, e: MouseEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    setReconnectingId(node.id)
-    try {
-      const result = await reconnectNodeAsync(node.id)
-      savePendingSetup(node.id, result, 'reconnect')
-      navigate(`/dashboard/nodes/${node.id}`, {
-        state: { registration: result, setupKind: 'reconnect' as const },
-      })
-    } catch (err) {
-      toast.failed(getFetchErrorMessage(err))
-    } finally {
-      setReconnectingId(null)
-    }
-  }
 
   return (
     <div className="relative mx-auto w-full max-w-6xl px-6 pb-10 md:px-8 lg:px-12">
@@ -298,20 +277,6 @@ export default function NodesPage() {
                       Continue setup
                     </button>
                   ) : null}
-                  {(node.status === 'offline' || node.status === 'degraded') && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleReconnect(node, e)}
-                      disabled={reconnectingId === node.id}
-                      className="theme-btn-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 ${reconnectingId === node.id ? 'animate-spin' : ''}`}
-                        aria-hidden="true"
-                      />
-                      {reconnectingId === node.id ? 'Reconnecting…' : 'Reconnect'}
-                    </button>
-                  )}
                 </div>
               </div>
             </Card>

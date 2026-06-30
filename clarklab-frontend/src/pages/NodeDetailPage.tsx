@@ -190,7 +190,6 @@ export default function NodeDetailPage() {
 
   const setupIncomplete = setupStatus != null && !setupStatus.complete
   const setupLocked = setupIncomplete || node?.status === 'pending'
-  const canReconnect = node?.status === 'offline' || node?.status === 'degraded'
   const showSetupTab = setupIncomplete || node?.status === 'pending'
 
   useNodesLiveRefresh(refresh, {
@@ -615,23 +614,7 @@ export default function NodeDetailPage() {
               ) : null}
             </>
           }
-          actions={
-            <>
-              {(node.status === 'offline' || node.status === 'degraded') ? (
-                <PageButton
-                  type="button"
-                  variant="glass"
-                  size="sm"
-                  onClick={handleReconnect}
-                  disabled={reconnecting}
-                >
-                  <RefreshCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
-                  {reconnecting ? 'Issuing token…' : 'Reconnect'}
-                </PageButton>
-              ) : null}
-              {notice ? <InlineNoticeBanner message={notice.text} ok={notice.ok} /> : null}
-            </>
-          }
+          actions={notice ? <InlineNoticeBanner message={notice.text} ok={notice.ok} /> : undefined}
         />
       </Reveal>
 
@@ -711,20 +694,6 @@ export default function NodeDetailPage() {
           )}
 
           <TabsContent value="overview" className="mt-6 space-y-6">
-            {canReconnect && !showSetupTab && (
-              <div className="theme-glass rounded-2xl border border-rose-400/25 px-5 py-5">
-                <p className="theme-accent-rose text-sm font-semibold">Node is unreachable</p>
-                <p className="theme-muted mt-2 text-sm leading-6">
-                  Issue a new registration token and re-run the agent register command. Your node
-                  settings and history will be kept.
-                </p>
-                <PageButton type="button" className="mt-4" onClick={handleReconnect} disabled={reconnecting}>
-                  <RefreshCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
-                  {reconnecting ? 'Issuing token…' : 'Reconnect node'}
-                </PageButton>
-              </div>
-            )}
-
             {showSetupTab && (
               <button
                 type="button"

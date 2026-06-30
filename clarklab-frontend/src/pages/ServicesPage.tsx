@@ -19,6 +19,7 @@ import { PageSelect } from '@/components/ui/PageSelect'
 import { ListPageHeader } from '@/components/layout/ListPageHeader'
 import { PageSearchInput } from '@/components/ui/PageSearchInput'
 import { ListPageSkeleton } from '@/components/ListPageSkeleton'
+import { MaskedNodeIp } from '@/components/MaskedNodeIp'
 import {
   fetchProjects,
   fetchNodes,
@@ -442,7 +443,11 @@ export default function ServicesPage() {
                   <div>
                     <p className="theme-muted text-[10px] uppercase tracking-[0.3em]">url</p>
                     <p className="theme-accent-violet mt-1 max-w-[160px] truncate text-sm font-semibold">
-                      {service.url || '—'}
+                      {service.url ? (
+                        <MaskedNodeIp value={service.url} mono />
+                      ) : (
+                        '—'
+                      )}
                     </p>
                   </div>
                   <ServiceStatusIndicator status={service.status} />

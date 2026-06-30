@@ -69,6 +69,9 @@ import {
 import { useServiceLogStream } from '@/lib/useLogStream'
 import { useServiceLiveRefresh, isTransientServiceStatus } from '@/lib/useServiceLiveRefresh'
 import { normalizeServiceUrl } from '@/lib/serviceUrl'
+import { MaskedNodeIp } from '@/components/MaskedNodeIp'
+import { containsIpAddress } from '@/lib/nodeIpPrivacy'
+import { useNodeIpVisibility } from '@/lib/nodeIpVisibility'
 import { openAccountPage } from '@/lib/accountDialog'
 import { isVolumeOnlyService } from '@/lib/serviceVolumePath'
 import { isAccessDeniedError } from '@/lib/httpClient'
@@ -103,7 +106,18 @@ interface OverviewFieldProps {
 }
 
 function OverviewField({ label, value, copyable = false, href, linkTo }: OverviewFieldProps) {
+  const { revealed: ipsRevealed } = useNodeIpVisibility()
   const copyValue = typeof value === 'string' ? value : undefined
+  const valueContainsIp = typeof value === 'string' && containsIpAddress(value)
+  const showHref = href && (!valueContainsIp || ipsRevealed)
+
+  const renderedValue =
+    typeof value === 'string' ? (
+      <MaskedNodeIp value={value} className="theme-heading text-sm font-semibold" mono />
+    ) : (
+      value
+    )
+
   return (
     <div className="theme-glass rounded-2xl px-4 py-3">
       <p className="theme-muted text-[10px] uppercase tracking-[0.3em]">{label}</p>
@@ -113,21 +127,23 @@ function OverviewField({ label, value, copyable = false, href, linkTo }: Overvie
             to={linkTo}
             className="theme-heading inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold break-all transition hover:text-violet-400 light:hover:text-violet-700"
           >
-            <span className="break-all">{value}</span>
+            <span className="break-all">{renderedValue}</span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           </Link>
-        ) : href ? (
+        ) : showHref ? (
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             className="theme-heading inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold break-all transition hover:text-violet-400 light:hover:text-violet-700"
           >
-            <span className="break-all">{value}</span>
+            <span className="break-all">{renderedValue}</span>
             <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           </a>
         ) : (
-          <p className="theme-heading min-w-0 flex-1 text-sm font-semibold break-all">{value}</p>
+          <div className="theme-heading min-w-0 flex-1 text-sm font-semibold break-all">
+            {renderedValue}
+          </div>
         )}
         {copyable && copyValue && <CopyButton value={copyValue} label={`Copy ${label}`} />}
       </div>

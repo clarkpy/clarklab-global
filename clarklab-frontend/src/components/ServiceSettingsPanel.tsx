@@ -22,6 +22,7 @@ import { PageCheckboxField } from '@/components/ui/PageCheckbox'
 import { useFormDirtyGuard } from '@/lib/useFormDirtyGuard'
 
 import { SettingsField } from '@/components/settings/SettingsField'
+import { MaskedNodeIp } from '@/components/MaskedNodeIp'
 import { fetchNodes, type Node } from '@/lib/api'
 import { Trash2 } from 'lucide-react'
 
@@ -337,7 +338,9 @@ export function ServiceSettingsPanel({
                   {formatServicePublicUrl(subdomain)}
                 </p>
               ) : service.url ? (
-                <p className="theme-muted mt-2 font-mono text-xs">{service.url}</p>
+                <p className="theme-muted mt-2 font-mono text-xs">
+                  <MaskedNodeIp value={service.url} mono />
+                </p>
               ) : null}
               {normalizeSubdomainInput(subdomain) ? (
                 <p

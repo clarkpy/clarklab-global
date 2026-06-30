@@ -59,12 +59,13 @@ import type { AgentUpdateTaskSummary } from '@/lib/platformUpdates'
 import { releaseNeedsUpdate } from '@/lib/releaseStatus'
 import { useMobilePageTitle } from '@/lib/useMobilePageTitle'
 import { useFormDirtyGuard } from '@/lib/useFormDirtyGuard'
+import { MaskedNodeIp } from '@/components/MaskedNodeIp'
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
       <span className="theme-muted text-xs uppercase tracking-[0.25em]">{label}</span>
-      <span className="theme-heading text-sm font-semibold break-all">{value}</span>
+      <MaskedNodeIp value={value} className="theme-heading text-sm font-semibold" mono />
     </div>
   )
 }

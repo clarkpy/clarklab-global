@@ -16,12 +16,11 @@ export function ApiDisconnectedBanner() {
   if (!visibleDisconnected) return null
 
   return (
-    <>
-      <div
-        role="alert"
-        className="fixed inset-x-0 top-0 z-[120] border-b border-rose-400/30 bg-rose-950/95 px-4 py-3 text-rose-50 backdrop-blur-md light:border-rose-300 light:bg-rose-100 light:text-rose-950"
-      >
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+    <div
+      role="alert"
+      className="sticky top-0 z-20 mb-4 rounded-2xl border border-rose-400/30 bg-rose-950/95 px-4 py-3 text-rose-50 backdrop-blur-md light:border-rose-300 light:bg-rose-100 light:text-rose-950 lg:top-0"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-bold tracking-wide">API lost connection</p>
           <p className="text-xs text-rose-100/80 light:text-rose-800">
@@ -38,8 +37,8 @@ export function ApiDisconnectedBanner() {
           </summary>
           <div className="absolute right-0 z-10 mt-2 w-[min(100vw-2rem,24rem)] rounded-2xl border border-rose-300/20 bg-rose-950 p-4 text-xs leading-6 shadow-xl light:border-rose-300 light:bg-white light:text-rose-950">
             <p>
-              Your device cannot reach the API. This can happen briefly during control
-              plane rebuilds.
+              Your device cannot reach the API. This can happen briefly during control plane
+              rebuilds.
             </p>
             <dl className="mt-3 space-y-2">
               <div>
@@ -77,14 +76,13 @@ export function ApiDisconnectedBanner() {
               type="button"
               className="mt-4 rounded-full border border-rose-300/40 px-3 py-1.5 text-xs font-semibold light:border-rose-400"
               onClick={checkNow}
+              disabled={checking}
             >
-              Retry now
+              {checking ? 'Checking…' : 'Retry now'}
             </button>
           </div>
         </details>
       </div>
-      </div>
-      <div className="h-14 shrink-0" aria-hidden />
-    </>
+    </div>
   )
 }

@@ -13,6 +13,7 @@ import { ProjectServiceIssuesDialog } from '@/components/ProjectServiceIssuesDia
 import { getPageTitle } from '@/lib/pageTitles'
 import { AuthLoadingScreen } from '@/components/layout/AuthLoadingScreen'
 import { SiteFooter } from '@/components/layout/SiteFooter'
+import { ApiDisconnectedBanner } from '@/components/ApiDisconnectedBanner'
 import { buildLoginPath } from '@/lib/authRedirect'
 
 export default function AppShell() {
@@ -162,6 +163,7 @@ export default function AppShell() {
         </aside>
 
         <div className="relative min-w-0 px-6 pb-8 pt-16 lg:ml-[304px] lg:px-8 lg:pt-8">
+          <ApiDisconnectedBanner />
           <main className="mx-auto max-w-7xl" id="main">
             <PageTransition variant="sub">
               <Outlet />

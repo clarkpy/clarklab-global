@@ -23,8 +23,8 @@ import UserDetailPage from '@/pages/UserDetailPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import AccessDeniedPage from '@/pages/AccessDeniedPage'
 import NotFoundPage from '@/pages/NotFoundPage'
-import { ApiDisconnectedBanner } from '@/components/ApiDisconnectedBanner'
 import { ApiConnectivityProvider } from '@/lib/apiConnectivity'
+import { NodeIpVisibilityProvider } from '@/lib/nodeIpVisibility'
 import { Toaster } from '@/components/ui/Toaster'
 import './App.css'
 
@@ -65,13 +65,14 @@ function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <ApiConnectivityProvider>
-          <Router>
-            <ApiDisconnectedBanner />
-            <AppRoutes />
-            <Toaster />
-          </Router>
-        </ApiConnectivityProvider>
+        <NodeIpVisibilityProvider>
+          <ApiConnectivityProvider>
+            <Router>
+              <AppRoutes />
+              <Toaster />
+            </Router>
+          </ApiConnectivityProvider>
+        </NodeIpVisibilityProvider>
       </AppProvider>
     </ErrorBoundary>
   )

@@ -103,6 +103,7 @@ export default function NodeDetailPage() {
   const [regenerating, setRegenerating] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [confirmReconnect, setConfirmReconnect] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null)
   const [nameInput, setNameInput] = useState('')
@@ -1014,6 +1015,32 @@ export default function NodeDetailPage() {
               </div>
             </Card>
 
+            <Card className="p-6">
+              <h2 className="theme-heading text-lg font-black">Reconnect</h2>
+              <p className="theme-subheading mt-2 text-sm leading-6">
+                Issue a new registration token to link this node to a fresh agent install, move it
+                to another host, or recover after credential loss. Node settings, access rules, and
+                service history are kept.
+              </p>
+              {node.status === 'online' ? (
+                <p className="theme-accent-amber mt-3 text-xs font-semibold leading-5">
+                  The current agent will stop reporting immediately. Complete registration on the
+                  host before deploying again.
+                </p>
+              ) : null}
+              <PageButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-4"
+                onClick={() => setConfirmReconnect(true)}
+                disabled={reconnecting}
+              >
+                <RefreshCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                {reconnecting ? 'Issuing token…' : 'Issue reconnect token'}
+              </PageButton>
+            </Card>
+
             <Card className="border-rose-400/25 p-6">
               <h2 className="theme-heading text-lg font-black text-rose-200 light:text-rose-800">Danger zone</h2>
               <p className="theme-muted mt-2 text-sm leading-6">
@@ -1082,6 +1109,22 @@ export default function NodeDetailPage() {
         onSuccess={({ serviceId, environment }) => {
           navigate(`/dashboard/services/${serviceId}?env=${environment}&welcome=1`)
         }}
+      />
+
+      <ConfirmActionDialog
+        open={confirmReconnect}
+        onClose={() => setConfirmReconnect(false)}
+        onConfirm={() => {
+          void handleReconnect().finally(() => setConfirmReconnect(false))
+        }}
+        title="Issue reconnect token"
+        description={
+          node.status === 'online'
+            ? `${node.name} will be marked pending and the running agent will lose access until you re-register on the host. Continue?`
+            : `Issue a new registration token for ${node.name}? Re-run the register command on the host, then start the agent.`
+        }
+        confirmLabel="Issue token"
+        loading={reconnecting}
       />
 
       <ConfirmActionDialog

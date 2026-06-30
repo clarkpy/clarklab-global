@@ -115,6 +115,7 @@ async function issueRegistrationToken(nodeId: string, ttlMinutes: number) {
 }
 
 async function resetNodeForReconnect(nodeId: string) {
+  await bumpAgentTokenVersion(nodeId)
   await pool.query(
     `UPDATE nodes SET
       status = 'pending',
@@ -383,10 +384,6 @@ nodeRoutes.post('/:nodeId/reconnect', async (c) => {
   const row = nodeResult.rows[0]
   if (!row) return c.json({ error: 'Node not found' }, 404)
 
-  if (row.status !== 'offline' && row.status !== 'degraded') {
-    return c.json({ error: 'Reconnect is only available for offline or degraded nodes' }, 400)
-  }
-
   await resetNodeForReconnect(nodeId)
   const { payload } = await issueRegistrationToken(nodeId, tokenTtlMinutes)
   await appendAgentLog(
@@ -398,7 +395,7 @@ nodeRoutes.post('/:nodeId/reconnect', async (c) => {
 
   return c.json({
     ...payload,
-    message: `Reconnect token issued for ${row.name as string}. Run the register command on the host, then start the agent.`,
+    message: `Reconnect token issues for ${row.name as string}. Run the register command on the host, then start the agent. Existing agent credentials are invalidated until registration completes.`,
   })
 })
 

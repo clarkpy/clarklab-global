@@ -1,6 +1,7 @@
 import { pool } from '../db/pool.js'
 import { emitServiceEvent } from './events.js'
 import { recordMetricSamples, memoryPercent } from './metricHistory.js'
+import { mapDockerHealthStatus } from './serviceHealthCheck.js'
 
 export async function syncContainerMetrics(
   nodeId: string,
@@ -27,6 +28,9 @@ export async function syncContainerMetrics(
     if (!envRow) continue
 
     const healthStatus = item.healthStatus?.trim().toLowerCase() ?? ''
+    const healthCheckStatus = healthStatus
+      ? mapDockerHealthStatus(healthStatus, true)
+      : null
     let nextStatus = envRow.status as string
 
     if (healthStatus === 'unhealthy' && nextStatus === 'running') {
@@ -41,7 +45,8 @@ export async function syncContainerMetrics(
            memory_used_mb = $4,
            memory_limit_mb = $5,
            restart_count = COALESCE($6, restart_count),
-           status = $7
+           status = $7,
+           health_check_status = COALESCE($8, health_check_status)
        WHERE service_id = $1 AND node_id = $2`,
       [
         serviceId,
@@ -51,6 +56,7 @@ export async function syncContainerMetrics(
         item.memoryLimitMb ?? null,
         item.restartCount ?? null,
         nextStatus,
+        healthCheckStatus,
       ],
     )
 

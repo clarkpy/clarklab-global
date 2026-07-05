@@ -1,6 +1,8 @@
 use crate::service_log::{classify_container_log_line, ContainerLogCursors, ServiceLogLine, TaskLogger};
 use std::collections::HashMap;
 use std::process::Command;
+use std::thread;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct RunSpec {
@@ -183,8 +185,13 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
     }
 
     let mut effective_spec = spec.clone();
+    let runtime_port = if spec.container_port > 0 {
+          spec.container_port
+      } else {
+          spec.port
+      };
     effective_spec.env_vars = runtime_env_vars(
-        spec.port,
+        runtime_port,
         spec.env_vars.clone(),
         effective_spec.inject_app_runtime_env,
     );
@@ -219,6 +226,50 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
         }
     }
     Ok(resolved_id)
+}
+
+fn rename_container(current_name: &str, new_name: &str) -> Result<(), String> {
+    let output = Command::new("docker")
+        .args(["rename", current_name, new_name])
+        .output()
+        .map_err(|e| format!("failed to run docker rename: {e}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "docker rename failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ))
+    }
+}
+
+fn inspect_container_state(name: &str) -> Result<(bool, String), String>
+  {
+      let output = Command::new("docker")
+          .args([
+              "inspect",
+              "-f",
+              "{{.State.Running}} {{if .State.Health}}
+              {{.State.Health.Status}}{{else}}none{{end}}",
+              name,
+          ])
+          .output()
+          .map_err(|e| format!("failed to inspect container {name}:
+          {e}"))?;
+
+      if !output.status.success() {
+          return Err(format!(
+              "failed to inspect container {name}: {}",
+              String::from_utf8_lossy(&output.stderr)
+          ));
+      }
+
+      let value = String::from_utf8_lossy(&output.stdout);
+      let mut parts = value.split_whitespace();
+      let running = parts.next() == Some("true");
+      let health = parts.next().unwrap_or("none").to_string();
+
+      Ok((running, health))
 }
 
 pub fn docker_start(name: &str) -> Result<String, String> {

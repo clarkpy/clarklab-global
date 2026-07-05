@@ -1,20 +1,36 @@
 import type { Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import { ZodError } from 'zod'
 
-export function registerErrorHandler(app: { onError: (handler: (err: Error, c: Context) => Response | Promise<Response>) => void }) {
-  app.onError((err, c) => {
-    const pgCode = (err as { code?: string }).code
+type ErrorHandlerApp = {
+  onError: (
+    handler: (err: Error, c: Context) => Response | Promise<Response>,
+  ) => void
+}
+
+export function registerErrorHandler(app:ErrorHandlerApp) {
+  app.onError(async (err, c) => {
+    const pgCode = (err as {code?: string}).code
+
+    if (err instanceof ZodError) {
+      return c.json({ error: 'Invalid request data', code: 'invalid_request' }, 400)
+    }
+
     if (pgCode === '23505') {
-      return c.json({ error: 'Resource already exists', code: pgCode }, 409)
+      return c.json({ error: 'Resource already exists', code: 'resource_exists' }, 409)
     }
+
     if (pgCode === '23503') {
-      return c.json({ error: 'Referenced resource not found', code: pgCode }, 400)
+      return c.json({ error: 'Resource not found', code: 'invalid_reference' }, 404)
     }
-    console.error(err)
-    const status = (err as { status?: ContentfulStatusCode }).status ?? 500
-    return c.json(
-      { error: err.message || 'Internal server error', code: pgCode ?? 'internal_error' },
-      status,
-    )
+
+    if (
+      pgCode === '23502' || pgCode === '23514' || pgCode === '22P02'
+    ) {
+      return c.json({ error: 'Invalid request payload', code: 'invalid_request' }, 400)
+    }
+
+    console.error('Unhandled error:', err)
+    return c.json({ error: 'Internal server error', code: 'internal_error' }, 500)
   })
 }

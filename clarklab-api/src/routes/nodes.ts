@@ -10,7 +10,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { pool } from '../db/pool.js'
 import { config } from '../config.js'
-import { requireUser } from '../middleware/auth.js'
+import {requireSysadmin, requireUser} from '../middleware/auth.js'
 import type { AppVariables } from '../types.js'
 import {
   formatTimestamp,
@@ -313,7 +313,7 @@ nodeRoutes.get('/setup-guide', async (c) => {
   ])
 })
 
-nodeRoutes.post('/register-token', async (c) => {
+nodeRoutes.post('/register-token', requireSysadmin, async (c) => {
   const userId = c.get('userId')
   const tokenTtlMinutes = await getRegistrationTokenTtlForUser(userId)
   const body = await c.req.json<{ dataRoot?: string }>().catch(() => ({} as { dataRoot?: string }))
@@ -359,10 +359,11 @@ nodeRoutes.get('/:nodeId/setup', async (c) => {
   return c.json(await computeSetupStatus(nodeId, row))
 })
 
-nodeRoutes.post('/:nodeId/registration-token', async (c) => {
+nodeRoutes.post('/:nodeId/registration-token', requireSysadmin, async (c) => {
   const userId = c.get('userId')
   const tokenTtlMinutes = await getRegistrationTokenTtlForUser(userId)
   const nodeId = c.req.param('nodeId')
+  if (!nodeId) return c.json({ error: 'Node ID required' }, 400)
   const nodeResult = await pool.query('SELECT * FROM nodes WHERE id = $1', [nodeId])
   const row = nodeResult.rows[0]
   if (!row) return c.json({ error: 'Node not found' }, 404)
@@ -376,10 +377,11 @@ nodeRoutes.post('/:nodeId/registration-token', async (c) => {
   return c.json(payload)
 })
 
-nodeRoutes.post('/:nodeId/reconnect', async (c) => {
+nodeRoutes.post('/:nodeId/reconnect', requireSysadmin, async (c) => {
   const userId = c.get('userId')
   const tokenTtlMinutes = await getRegistrationTokenTtlForUser(userId)
   const nodeId = c.req.param('nodeId')
+  if (!nodeId) return c.json({ error: 'Node ID required' }, 400)
   const nodeResult = await pool.query('SELECT id, status, name FROM nodes WHERE id = $1', [nodeId])
   const row = nodeResult.rows[0]
   if (!row) return c.json({ error: 'Node not found' }, 404)
@@ -519,8 +521,9 @@ nodeRoutes.get('/:nodeId/ports/check', async (c) => {
   })
 })
 
-nodeRoutes.patch('/:nodeId', async (c) => {
+nodeRoutes.patch('/:nodeId', requireSysadmin, async (c) => {
   const nodeId = c.req.param('nodeId')
+  if (!nodeId) return c.json({ error: 'Node ID required' }, 400)
   const body = await c.req.json<{
     name?: string
     description?: string
@@ -657,8 +660,9 @@ nodeRoutes.patch('/:nodeId', async (c) => {
   return c.json(node)
 })
 
-nodeRoutes.delete('/:nodeId', async (c) => {
+nodeRoutes.delete('/:nodeId', requireSysadmin, async (c) => {
   const nodeId = c.req.param('nodeId')
+  if (!nodeId) return c.json({ error: 'Node ID required' }, 400)
   const result = await pool.query('SELECT * FROM nodes WHERE id = $1', [nodeId])
   const row = result.rows[0]
   if (!row) return c.json({ error: 'Node not found' }, 404)

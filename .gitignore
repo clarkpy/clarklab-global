@@ -14,3 +14,4 @@ agent.yaml
 *.key
 *.p12
 .cursor/
+.DS_Store

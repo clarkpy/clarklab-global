@@ -61,6 +61,7 @@ export interface ServiceSettingsPatch {
   buildCommand?: string
   installCommand?: string
   image?: string
+  healthCheck?: string
   storage?: {
     enabled?: boolean
     mountPath?: string
@@ -111,6 +112,10 @@ export function mergeDeploySettings(
     next.image = patch.image.trim()
   }
 
+  if (patch.healthCheck !== undefined) {
+    next.healthCheck = patch.healthCheck.trim()
+  }
+
   if (patch.storage !== undefined) {
     const current = storageFromDeployConfig(next)
     next.storage = {
@@ -139,4 +144,9 @@ export function restartSettingsFromDeployConfig(
   deployConfig: Record<string, unknown>,
 ): ServiceRestartSettings {
   return normalizeRestartSettings(deployConfig.restart)
+}
+
+
+export function healthCheckFromDeployConfig(deployConfig: Record<string, unknown>): string {
+  return ((deployConfig.healthCheck as string) ?? '').trim()
 }

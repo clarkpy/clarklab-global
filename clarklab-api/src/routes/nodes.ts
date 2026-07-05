@@ -794,7 +794,16 @@ agentRoutes.post('/tasks/:taskId/complete', async (c) => {
   const status = body.status === 'failed' ? 'failed' : 'completed'
 
   const taskResult = await pool.query(
-    `SELECT t.id, t.action, se.node_id, se.environment, se.id AS service_environment_id, se.port, se.hostname, s.id AS service_id
+    `SELECT
+       t.id,
+       t.action,
+       se.node_id,
+       se.environment,
+       se.id AS service_environment_id,
+       se.port,
+       se.hostname,
+       s.id AS service_id,
+       s.deploy_config
      FROM deploy_tasks t
      JOIN service_environments se ON se.id = t.service_environment_id
      JOIN services s ON s.id = se.service_id
@@ -831,6 +840,14 @@ agentRoutes.post('/tasks/:taskId/complete', async (c) => {
   }
 
   const uptime = serviceStatus === 'running' ? '0h 1m' : '0h 0m'
+  const deployConfig = (task.deploy_config as Record<string, unknown> | null) ?? {}
+  const { healthCheckFromDeployConfig } = await import('../lib/serviceDeployConfig.js')
+  const healthCheckStatusOnComplete =
+    status === 'completed' && ['deploy', 'start', 'restart'].includes(action)
+      ? healthCheckFromDeployConfig(deployConfig).length > 0
+        ? 'pending'
+        : 'notconfigured'
+      : null
 
   await pool.query(
     `UPDATE service_environments
@@ -838,7 +855,8 @@ agentRoutes.post('/tasks/:taskId/complete', async (c) => {
          container_id = COALESCE($3, container_id),
          url = CASE WHEN $4 <> '' THEN $4 ELSE url END,
          last_deployed_at = CASE WHEN $5 IN ('deploy', 'start', 'restart') AND $6 = 'completed' THEN NOW() ELSE last_deployed_at END,
-         uptime = $7
+         uptime = $7,
+         health_check_status = CASE WHEN $8::text IS NOT NULL THEN $8 ELSE health_check_status END
      WHERE id = $1`,
     [
       task.service_environment_id,
@@ -848,6 +866,7 @@ agentRoutes.post('/tasks/:taskId/complete', async (c) => {
       action,
       status,
       uptime,
+      healthCheckStatusOnComplete,
     ],
   )
 
@@ -1007,6 +1026,7 @@ agentRoutes.post('/heartbeat', async (c) => {
       memoryUsedMb?: number
       memoryLimitMb?: number
       restartCount?: number
+      healthStatus?: string
     }>
     serviceLogs?: Array<{
       serviceId?: string

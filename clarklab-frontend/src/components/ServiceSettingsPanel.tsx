@@ -67,6 +67,7 @@ export function ServiceSettingsPanel({
   const [startCommand, setStartCommand] = useState('')
   const [buildCommand, setBuildCommand] = useState('')
   const [installCommand, setInstallCommand] = useState('')
+  const [healthCheckCommand, setHealthCheckCommand] = useState('')
   const [storageEnabled, setStorageEnabled] = useState(true)
   const [storageMountPath, setStorageMountPath] = useState('')
   const [storageSizeGb, setStorageSizeGb] = useState('10')
@@ -94,6 +95,7 @@ export function ServiceSettingsPanel({
     setStartCommand(service.startCommand ?? '')
     setBuildCommand(service.buildCommand ?? '')
     setInstallCommand(service.installCommand ?? '')
+    setHealthCheckCommand(service.healthCheck ?? '')
     const storage = service.storage
     setStorageEnabled(storage?.enabled !== false)
     setStorageMountPath(storage?.mountPath ?? template?.storage.mountPath ?? '')
@@ -237,6 +239,7 @@ export function ServiceSettingsPanel({
             ? Math.min(3600, Math.floor(parsedWindowSeconds))
             : DEFAULT_SERVICE_RESTART.windowSeconds,
       },
+      healthCheck: healthCheckCommand.trim(),
     })
     resetFormDirty()
   }
@@ -521,6 +524,27 @@ export function ServiceSettingsPanel({
               Without storage, data is lost when the container is stopped.
             </p>
           )}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="theme-heading text-lg font-black">Health Checks</h2>
+        <p className="theme-muted mt-1 text-sm leading-6">
+          Configure a Docker health check command for the container. Changes apply on the next deploy
+          or recreate.
+        </p>
+        <div className="mt-5 space-y-5">
+          <SettingsField
+            label="health check command"
+            hint="Runs inside the container. Use localhost and the app port inside the container."
+          >
+            <Input
+              value={healthCheckCommand}
+              onChange={(event) => setHealthCheckCommand(event.target.value)}
+              placeholder="curl -f http://localhost:3000/health"
+              className="font-mono text-xs"
+            />
+          </SettingsField>
         </div>
       </Card>
 

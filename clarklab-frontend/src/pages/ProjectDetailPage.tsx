@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AccentTag } from '@/components/ui/AccentTag'
 import { ProjectStatusBadge, ServiceStatusIndicator } from '@/components/ui/StatusBadge'
+import { ServiceHealthCheckIndicator } from '@/components/ServiceHealthCheckIndicator'
 import { RelativeTime } from '@/components/RelativeTime'
 import { Reveal, RevealGroup } from '@/components/layout/Reveal'
 import { DetailPageHeader } from '@/components/layout/DetailPageHeader'
@@ -584,17 +585,22 @@ export default function ProjectDetailPage() {
                                     {service.port}
                                   </p>
                                 </div>
-                                <ServiceStatusIndicator
-                                  status={service.status}
-                                  onClick={
-                                    isServiceErrorStatus(service.status)
-                                      ? (event) => {
-                                          event.stopPropagation()
-                                          setIssuesOpen(true)
-                                        }
-                                      : undefined
-                                  }
-                                />
+                                <div className="flex items-center gap-4">
+                                  <ServiceHealthCheckIndicator
+                                    status={service.healthCheckStatus ?? 'notconfigured'}
+                                  />
+                                  <ServiceStatusIndicator
+                                    status={service.status}
+                                    onClick={
+                                      isServiceErrorStatus(service.status, service.healthCheckStatus)
+                                        ? (event) => {
+                                            event.stopPropagation()
+                                            setIssuesOpen(true)
+                                          }
+                                        : undefined
+                                    }
+                                  />
+                                </div>
                               </div>
                             </Card>
                           ))}

@@ -2,6 +2,7 @@ import type { DevLocalCommands } from '@/lib/devAgentCommands'
 
 export type ProjectStatus = 'healthy' | 'warning' | 'offline'
 export type ServiceStatus = 'running' | 'stopped' | 'degraded' | 'deploying' | 'stopping'
+export type ServiceHealthCheckStatus = 'notconfigured' | 'pending' | 'passed' | 'failed'
 export type LogLevel = 'info' | 'warn' | 'error'
 export type NodeStatus = 'online' | 'offline' | 'degraded' | 'pending'
 export type DeploymentStatus = 'success' | 'failed' | 'building' | 'queued'
@@ -46,6 +47,7 @@ export interface Service {
   uptime: string
   nodeId?: string | null
   nodeName?: string | null
+  healthCheckStatus?: ServiceHealthCheckStatus
 }
 
 export type ServiceRestartPolicy = 'unless-stopped' | 'on-failure' | 'always'
@@ -87,6 +89,7 @@ export interface ServiceDetail extends Service {
   storage?: ServiceStorageConfig
   restart?: ServiceRestartSettings
   healthCheck: string
+  healthCheckStatus?: ServiceHealthCheckStatus
   configured?: boolean
 }
 
@@ -105,6 +108,7 @@ export interface ServiceSettingsInput {
   installCommand?: string
   storage?: Partial<ServiceStorageConfig>
   restart?: Partial<ServiceRestartSettings>
+  healthCheck?: string
   nodeId?: string
 }
 
@@ -417,6 +421,7 @@ export interface SuggestedService {
   projectId?: string
   projectName?: string
   environment?: string
+  healthCheckStatus?: ServiceHealthCheckStatus
 }
 
 export interface ProjectSuggestions {

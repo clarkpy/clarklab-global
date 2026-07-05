@@ -15,6 +15,7 @@ pub struct RunSpec {
     pub service_id: String,
     pub skip_pull: bool,
     pub restart_policy: String,
+    pub health_check: String,
     pub inject_app_runtime_env: bool,
     pub entrypoint: Option<String>,
     pub command: Vec<String>,
@@ -112,6 +113,19 @@ pub fn build_run_args(spec: &RunSpec) -> Vec<String> {
     if let Some(entrypoint) = &spec.entrypoint {
         args.push("--entrypoint".to_string());
         args.push(entrypoint.clone());
+    }
+
+    if !spec.health_check.trim().is_empty() {
+        args.push("--health-cmd".to_string());
+        args.push(spec.health_check.trim().to_string());
+        args.push("--health-interval".to_string());
+        args.push("30s".to_string());
+        args.push("--health-timeout".to_string());
+        args.push("5s".to_string());
+        args.push("--health-retries".to_string());
+        args.push("3".to_string());
+        args.push("--health-start-period".to_string());
+        args.push("30s".to_string());
     }
 
     args.push(spec.image.clone());
@@ -266,6 +280,8 @@ pub struct ContainerMetricReport {
     pub memory_used_mb: f32,
     pub memory_limit_mb: f32,
     pub restart_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub health_status: Option<String>,
 }
 
 fn parse_percent(value: &str) -> Option<f32> {
@@ -330,7 +346,7 @@ pub fn collect_managed_container_stats() -> Vec<ContainerMetricReport> {
             .args([
                 "inspect",
                 "-f",
-                "{{index .Config.Labels \"clarklab.service_id\"}} {{.RestartCount}}",
+                "{{index .Config.Labels \"clarklab.service_id\"}} {{.RestartCount}} {{if .State.Health}}{{.State.Health.Status}}{{end}}",
                 &id,
             ])
             .output()
@@ -349,6 +365,7 @@ pub fn collect_managed_container_stats() -> Vec<ContainerMetricReport> {
             .next()
             .and_then(|value| value.parse::<u32>().ok())
             .unwrap_or(0);
+        let health_status = parts.next().map(|value| value.to_string());
 
         let stats_output = match Command::new("docker")
             .args(["stats", "--no-stream", "--format", "{{.CPUPerc}}\t{{.MemUsage}}", &id])
@@ -375,6 +392,7 @@ pub fn collect_managed_container_stats() -> Vec<ContainerMetricReport> {
             memory_used_mb: memory.0,
             memory_limit_mb: memory.1,
             restart_count,
+            health_status,
         });
     }
 
@@ -503,6 +521,7 @@ mod tests {
             service_id: "svc-1".to_string(),
             skip_pull: false,
             restart_policy: "unless-stopped".to_string(),
+            health_check: String::new(),
             inject_app_runtime_env: false,
             entrypoint: None,
             command: vec![],
@@ -525,6 +544,7 @@ mod tests {
             service_id: "svc-1".to_string(),
             skip_pull: false,
             restart_policy: "unless-stopped".to_string(),
+            health_check: String::new(),
             inject_app_runtime_env: false,
             entrypoint: None,
             command: vec![],
@@ -547,6 +567,7 @@ mod tests {
             service_id: "svc-1".to_string(),
             skip_pull: false,
             restart_policy: "unless-stopped".to_string(),
+            health_check: String::new(),
             inject_app_runtime_env: false,
             entrypoint: None,
             command: vec![],
@@ -556,6 +577,54 @@ mod tests {
         assert!(args.contains(&"0.0.0.0:3306:3306".to_string()));
         assert!(args.contains(&"mysql:8".to_string()));
         assert!(args.iter().any(|a| a.contains("clarklab.service_id=svc-1")));
+    }
+
+    #[test]
+    fn build_run_args_includes_health_check_when_configured() {
+        let spec = RunSpec {
+            container_name: "clarklab-app".to_string(),
+            image: "node:22-alpine".to_string(),
+            port: 3000,
+            container_port: 3000,
+            env_vars: vec![],
+            storage_enabled: false,
+            mount_path: String::new(),
+            host_data_path: String::new(),
+            service_id: "svc-1".to_string(),
+            skip_pull: false,
+            restart_policy: "unless-stopped".to_string(),
+            health_check: "curl -f http://localhost:3000/health || exit 1".to_string(),
+            inject_app_runtime_env: true,
+            entrypoint: None,
+            command: vec![],
+        };
+        let args = build_run_args(&spec);
+        assert!(args.contains(&"--health-cmd".to_string()));
+        assert!(args.contains(&"curl -f http://localhost:3000/health || exit 1".to_string()));
+        assert!(args.contains(&"--health-interval".to_string()));
+    }
+
+    #[test]
+    fn build_run_args_skips_health_check_when_empty() {
+        let spec = RunSpec {
+            container_name: "clarklab-app".to_string(),
+            image: "node:22-alpine".to_string(),
+            port: 3000,
+            container_port: 3000,
+            env_vars: vec![],
+            storage_enabled: false,
+            mount_path: String::new(),
+            host_data_path: String::new(),
+            service_id: "svc-1".to_string(),
+            skip_pull: false,
+            restart_policy: "unless-stopped".to_string(),
+            health_check: String::new(),
+            inject_app_runtime_env: true,
+            entrypoint: None,
+            command: vec![],
+        };
+        let args = build_run_args(&spec);
+        assert!(!args.contains(&"--health-cmd".to_string()));
     }
 
     #[test]

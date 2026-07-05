@@ -229,10 +229,6 @@ export async function apiGetPublicStatus(): Promise<PublicStatus> {
   return apiFetch<PublicStatus>('/api/public/status')
 }
 
-export async function apiGetPublicHealth(): Promise<{ status: string; version: string }> {
-  return apiFetch<{ status: string; version: string }>('/health')
-}
-
 export async function apiGetProjects(): Promise<Project[]> {
   return apiFetch<Project[]>('/api/projects')
 }

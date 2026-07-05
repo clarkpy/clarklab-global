@@ -173,6 +173,38 @@ export async function queueDeployTask(
   return id
 }
 
+export async function queueHealthFailureStop(input: {
+  serviceId: string
+  serviceEnvironmentId: string
+  environment: string
+  serviceName: string
+}) {
+  const pendingStop = await pool.query(
+    `SELECT id FROM deploy_tasks
+     WHERE service_environment_id = $1
+       AND action = 'stop'
+       AND status IN ('pending', 'claimed')
+     LIMIT 1`,
+    [input.serviceEnvironmentId],
+  )
+  if (pendingStop.rowCount && pendingStop.rowCount > 0) {
+    return
+  }
+
+  await pool.query(`UPDATE service_environments SET status = 'stopping' WHERE id = $1`, [
+    input.serviceEnvironmentId,
+  ])
+  await emitServiceStatusUpdated(input.serviceId, input.environment, 'stopping')
+  await queueDeployTask(input.serviceEnvironmentId, 'stop', {
+    reason: 'health_check_failed',
+  })
+  await appendServiceLog({
+    serviceId: input.serviceId,
+    level: 'error',
+    message: `${input.serviceName} health check failed — stopping service`,
+  })
+}
+
 async function runDatabaseDeploy(
   serviceId: string,
   ctx: ServiceContext,

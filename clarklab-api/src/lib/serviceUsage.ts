@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js'
+import { resolveHealthCheckStatus } from './serviceHealthCheck.js'
 
 export type ServiceUsageEventType =
   | 'view'
@@ -17,6 +18,7 @@ export interface SuggestedServiceRow {
   projectId: string
   projectName: string
   environment: string
+  healthCheckStatus: string
 }
 
 export function recordServiceUsage(input: {
@@ -41,15 +43,17 @@ const TOP_SERVICES_QUERY = `
     s.id,
     s.name,
     s.project_id,
+    s.deploy_config,
     p.name AS project_name,
     COALESCE(se.environment, 'production') AS environment,
     COALESCE(se.status, 'stopped') AS status,
+    COALESCE(se.health_check_status, 'notconfigured') AS health_check_status,
     COUNT(*)::int AS usage_count
   FROM service_usage_events ue
   JOIN services s ON s.id = ue.service_id
   JOIN projects p ON p.id = s.project_id
   LEFT JOIN LATERAL (
-    SELECT se.environment, se.status
+    SELECT se.environment, se.status, se.health_check_status
     FROM service_environments se
     WHERE se.service_id = s.id
     ORDER BY
@@ -67,7 +71,7 @@ export async function fetchTopServicesForProject(
   const result = await pool.query(
     `${TOP_SERVICES_QUERY}
        AND ue.project_id = $1
-     GROUP BY s.id, s.name, s.project_id, p.name, se.environment, se.status
+     GROUP BY s.id, s.name, s.project_id, s.deploy_config, p.name, se.environment, se.status, se.health_check_status
      ORDER BY usage_count DESC, s.name ASC
      LIMIT $2`,
     [projectId, limit],
@@ -79,7 +83,7 @@ export async function fetchTopServicesForProject(
 export async function fetchTopServicesGlobal(limit = 2): Promise<SuggestedServiceRow[]> {
   const result = await pool.query(
     `${TOP_SERVICES_QUERY}
-     GROUP BY s.id, s.name, s.project_id, p.name, se.environment, se.status
+     GROUP BY s.id, s.name, s.project_id, s.deploy_config, p.name, se.environment, se.status, se.health_check_status
      ORDER BY usage_count DESC, s.name ASC
      LIMIT $1`,
     [limit],
@@ -102,12 +106,12 @@ export async function fetchTopServicesForAccessibleProjects(
   const result = await pool.query(
     accessibleIds === null
       ? `${TOP_SERVICES_QUERY}
-         GROUP BY s.id, s.name, s.project_id, p.name, se.environment, se.status
+         GROUP BY s.id, s.name, s.project_id, s.deploy_config, p.name, se.environment, se.status, se.health_check_status
          ORDER BY usage_count DESC, s.name ASC
          LIMIT $1`
       : `${TOP_SERVICES_QUERY}
          AND ue.project_id = ANY($1::uuid[])
-       GROUP BY s.id, s.name, s.project_id, p.name, se.environment, se.status
+       GROUP BY s.id, s.name, s.project_id, s.deploy_config, p.name, se.environment, se.status, se.health_check_status
        ORDER BY usage_count DESC, s.name ASC
        LIMIT $2`,
     accessibleIds === null ? [limit] : [accessibleIds, limit],
@@ -117,6 +121,7 @@ export async function fetchTopServicesForAccessibleProjects(
 }
 
 function mapSuggestedRow(row: Record<string, unknown>): SuggestedServiceRow {
+  const deployConfig = (row.deploy_config as Record<string, unknown> | null) ?? {}
   return {
     id: row.id as string,
     name: row.name as string,
@@ -124,5 +129,9 @@ function mapSuggestedRow(row: Record<string, unknown>): SuggestedServiceRow {
     projectId: row.project_id as string,
     projectName: row.project_name as string,
     environment: (row.environment as string) ?? 'production',
+    healthCheckStatus: resolveHealthCheckStatus(
+      deployConfig,
+      row.health_check_status as string | undefined,
+    ),
   }
 }

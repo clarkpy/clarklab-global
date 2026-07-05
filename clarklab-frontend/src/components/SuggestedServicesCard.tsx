@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Database, GitBranch, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ServiceStatusIndicator } from '@/components/ui/StatusBadge'
+import { ServiceHealthCheckIndicator } from '@/components/ServiceHealthCheckIndicator'
 import { getServiceTemplate, SERVICE_TEMPLATES } from '@/lib/serviceTemplates'
 import type { SuggestedService } from '@/lib/domainTypes'
 
@@ -97,7 +98,12 @@ export function SuggestedServicesCard({
                       <p className="theme-muted mt-1 truncate text-xs">{service.projectName}</p>
                     ) : null}
                   </div>
-                  <ServiceStatusIndicator status={service.status} />
+                  <div className="flex items-start gap-3">
+                    <ServiceHealthCheckIndicator
+                      status={service.healthCheckStatus ?? 'notconfigured'}
+                    />
+                    <ServiceStatusIndicator status={service.status} />
+                  </div>
                 </div>
               </button>
             )

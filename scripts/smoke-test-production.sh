@@ -21,13 +21,9 @@ echo "API_URL=$API_URL"
 echo "APP_URL=$APP_URL"
 echo ""
 
-HEALTH="$(curl -fsS "$API_URL/health" 2>/dev/null)" || fail "GET $API_URL/health"
-echo "$HEALTH" | grep -q '"status":"ok"' || fail "health response missing status ok"
-pass "API health"
-
 PUBLIC="$(curl -fsS "$API_URL/api/public/status" 2>/dev/null)" || fail "GET /api/public/status"
-echo "$PUBLIC" | grep -q '"nodeCount"' || fail "public status shape unexpected"
-pass "Public status endpoint"
+echo "$PUBLIC" | grep -q '"nodeCount"' || fail "public status response missing nodeCount"
+pass "API reachable"
 
 APP_CODE="$(curl -fsS -o /dev/null -w '%{http_code}' "$APP_URL/")"
 [[ "$APP_CODE" == "200" ]] || fail "APP_URL returned HTTP $APP_CODE (expected 200)"

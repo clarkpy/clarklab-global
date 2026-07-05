@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ServiceStatusIndicator } from '@/components/ui/StatusBadge'
+import { ServiceHealthCheckIndicator } from '@/components/ServiceHealthCheckIndicator'
 import { AccentTag } from '@/components/ui/AccentTag'
 import { Reveal, RevealGroup } from '@/components/layout/Reveal'
 import { AddServiceDialog } from '@/components/AddServiceDialog'
@@ -450,6 +451,9 @@ export default function ServicesPage() {
                       )}
                     </p>
                   </div>
+                  <ServiceHealthCheckIndicator
+                    status={service.healthCheckStatus ?? 'notconfigured'}
+                  />
                   <ServiceStatusIndicator status={service.status} />
                 </div>
               </div>

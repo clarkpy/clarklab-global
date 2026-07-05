@@ -67,6 +67,7 @@ export const createServiceSchema = z.object({
   startCommand: z.string().optional(),
   buildCommand: z.string().optional(),
   installCommand: z.string().optional(),
+  healthCheck: z.string().max(512).optional(),
   storage: z
     .object({
       enabled: z.boolean().optional(),
@@ -105,6 +106,7 @@ export const updateServiceSettingsSchema = z.object({
   startCommand: z.string().max(512).optional(),
   buildCommand: z.string().max(512).optional(),
   installCommand: z.string().max(512).optional(),
+  healthCheck: z.string().max(512).optional(),
   storage: z
     .object({
       enabled: z.boolean().optional(),

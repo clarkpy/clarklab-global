@@ -24,18 +24,18 @@ type ApiConnectivityState = {
 const ApiConnectivityContext = createContext<ApiConnectivityState | undefined>(undefined)
 const DISCONNECTED_BANNER_DELAY_MS = 5000
 
-async function probeApiHealth(): Promise<{ ok: true } | { ok: false; message: string }> {
+async function probeApiConnectivity(): Promise<{ ok: true } | { ok: false; message: string }> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 5000)
 
   try {
-    const response = await fetch(`${API_URL}/health`, {
+    const response = await fetch(`${API_URL}/api/public/status`, {
       method: 'GET',
       credentials: 'include',
       signal: controller.signal,
     })
     if (!response.ok) {
-      return { ok: false, message: `Health check returned ${response.status}` }
+      return { ok: false, message: `API returned ${response.status}` }
     }
     return { ok: true }
   } catch (err) {
@@ -60,7 +60,7 @@ export function ApiConnectivityProvider({ children }: { children: ReactNode }) {
 
   const runCheck = useCallback(async () => {
     setChecking(true)
-    const result = await probeApiHealth()
+    const result = await probeApiConnectivity()
     const checkedAt = new Date().toISOString()
     setLastCheckedAt(checkedAt)
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiGetPublicHealth, apiGetPublicStatus, type PublicStatus } from '@/lib/apiClient'
+import { apiGetPublicStatus, type PublicStatus } from '@/lib/apiClient'
 
 const POLL_INTERVAL_MS = 45_000
 
@@ -22,12 +22,9 @@ export function usePublicStatus(): PublicStatusState {
 
   const refresh = useCallback(async () => {
     try {
-      const [health, status] = await Promise.all([
-        apiGetPublicHealth(),
-        apiGetPublicStatus(),
-      ])
-      setApiOnline(health.status === 'ok')
-      setVersion(status.version ?? health.version ?? null)
+      const status = await apiGetPublicStatus()
+      setApiOnline(true)
+      setVersion(status.version ?? null)
       setSummary(status)
       setLastUpdated(new Date())
       setError(null)

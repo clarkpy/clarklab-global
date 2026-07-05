@@ -92,7 +92,8 @@ projectRoutes.get('/', async (c) => {
          COUNT(*) FILTER (WHERE se.environment = 'production' AND se.node_id IS NOT NULL)::int AS prod_count,
          COUNT(*) FILTER (WHERE se.environment = 'development' AND se.node_id IS NOT NULL)::int AS dev_count,
          COUNT(*) FILTER (
-           WHERE se.node_id IS NOT NULL AND se.status = 'degraded'
+           WHERE se.node_id IS NOT NULL
+             AND (se.status = 'degraded' OR se.health_check_status = 'failed')
          )::int AS failing_count,
          COUNT(*) FILTER (WHERE se.node_id IS NOT NULL AND se.status = 'running')::int AS running_count,
          COUNT(DISTINCT se.node_id) FILTER (WHERE se.node_id IS NOT NULL)::int AS node_count,
@@ -153,6 +154,7 @@ projectRoutes.get('/:projectId/suggestions', async (c) => {
       name: row.name,
       status: row.status,
       environment: row.environment,
+      healthCheckStatus: row.healthCheckStatus,
     })),
   })
 })
@@ -186,7 +188,7 @@ projectRoutes.get('/:projectId/issues', async (c) => {
      JOIN service_environments se ON se.service_id = s.id
      WHERE s.project_id = $1
        AND se.node_id IS NOT NULL
-       AND se.status = 'degraded'
+       AND (se.status = 'degraded' OR se.health_check_status = 'failed')
      ORDER BY s.name ASC, se.environment ASC`,
     [projectId],
   )

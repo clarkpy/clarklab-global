@@ -231,6 +231,7 @@ fn run_spec_from_task(task: &DeployTask, data_root: &str) -> RunSpec {
         service_id: task.service_id.clone(),
         skip_pull: task.effective_source_type() == "git",
         restart_policy: task.docker_restart_policy(),
+        health_check: task.health_check_or_config(),
         inject_app_runtime_env: task.effective_source_type() == "git",
         entrypoint: None,
         command: Vec::new(),

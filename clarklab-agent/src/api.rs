@@ -121,6 +121,8 @@ pub struct DeployTask {
     #[serde(default)]
     pub restart_policy: String,
     #[serde(default)]
+    pub health_check: String,
+    #[serde(default)]
     pub container_port: Option<u32>,
 }
 
@@ -208,6 +210,18 @@ impl DeployTask {
             }
         }
         "unless-stopped".to_string()
+    }
+
+    pub fn health_check_or_config(&self) -> String {
+        if !self.health_check.trim().is_empty() {
+            return self.health_check.trim().to_string();
+        }
+        self.deploy_config
+            .get("healthCheck")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string()
     }
 
     fn command_or_config(&self, field: &str, config_key: &str) -> Option<String> {

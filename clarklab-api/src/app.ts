@@ -23,6 +23,7 @@ import { requireUser } from './middleware/auth.js'
 import { fetchTopServicesForAccessibleProjects } from './lib/serviceUsage.js'
 import { getAccessibleProjectIds, isSysadmin } from './lib/access.js'
 import { getAppBrandName, getAppDomain } from './lib/displaySettings.js'
+import { resolveHealthCheckStatus } from './lib/serviceHealthCheck.js'
 import type { AppVariables } from './types.js'
 
 export function createApp() {
@@ -45,8 +46,6 @@ export function createApp() {
       referrerPolicy: 'strict-origin-when-cross-origin',
     }),
   )
-
-  app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }))
 
   app.get('/api/config', async (c) =>
     c.json({
@@ -185,11 +184,11 @@ export function createApp() {
         projectScope.values,
       ),
       pool.query(
-        `SELECT s.id, s.name, e.status
+        `SELECT s.id, s.name, s.deploy_config, e.status, e.health_check_status
          FROM services s
          JOIN projects p ON p.id = s.project_id
          LEFT JOIN LATERAL (
-           SELECT se.status
+           SELECT se.status, se.health_check_status
            FROM service_environments se
            WHERE se.service_id = s.id AND se.environment = 'production'
            ORDER BY se.created_at DESC
@@ -206,6 +205,10 @@ export function createApp() {
       id: s.id as string,
       name: s.name as string,
       status: (s.status as string) ?? 'stopped',
+      healthCheckStatus: resolveHealthCheckStatus(
+        (s.deploy_config as Record<string, unknown> | null) ?? {},
+        s.health_check_status as string | undefined,
+      ),
     }))
 
     const ranked = await fetchTopServicesForAccessibleProjects(userId, role, 2)
@@ -216,12 +219,15 @@ export function createApp() {
       projectId: row.projectId,
       projectName: row.projectName,
       environment: row.environment,
+      healthCheckStatus: row.healthCheckStatus,
     }))
 
     return c.json({
       projectCount: projects.rows[0]?.count ?? 0,
       serviceCount: serviceRows.length,
-      alertCount: serviceRows.filter((s) => s.status === 'degraded').length,
+      alertCount: serviceRows.filter(
+        (s) => s.status === 'degraded' || s.healthCheckStatus === 'failed',
+      ).length,
       nodeCount: nodes.rowCount ?? 0,
       onlineNodeCount: onlineCount,
       nodes: nodes.rows.map((n) => ({ id: n.id, name: n.name, status: n.status })),

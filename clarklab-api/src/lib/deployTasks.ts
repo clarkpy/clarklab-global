@@ -1,7 +1,11 @@
 import { pool } from '../db/pool.js'
 import { getGitHubConnection } from './githubConnection.js'
 import { buildGitHttpHeader, buildRepositoryUrl } from './github.js'
-import { resolveDockerRestartPolicy, restartSettingsFromDeployConfig } from './serviceDeployConfig.js'
+import {
+  healthCheckFromDeployConfig,
+  resolveDockerRestartPolicy,
+  restartSettingsFromDeployConfig,
+} from './serviceDeployConfig.js'
 import { resolveContainerPort } from './databaseTemplates.js'
 import { decryptEnvVarsForDeploy, parseStoredEnvVars } from './envVars.js'
 
@@ -108,6 +112,7 @@ export async function claimPendingDeployTasksForNode(nodeId: string) {
         buildCommand: (deployConfig.buildCommand as string) ?? '',
         installCommand: (deployConfig.installCommand as string) ?? '',
         restartPolicy,
+        healthCheck: healthCheckFromDeployConfig(deployConfig),
       }
 
       if (sourceType !== 'git') {

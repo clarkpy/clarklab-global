@@ -37,15 +37,9 @@ split-subdomain deployments (`app.clarklab.tech` + `api.clarklab.tech`):
 
 Never commit `.env` or `agent.yaml`. Copy `[.env.example](.env.example)` to `.env` at the repo root and fill in values locally. The root `.gitignore` excludes env files, keys, and agent credentials.
 
-### Health check
+### Service health checks
 
-```bash
-curl http://localhost:3000/health
-```
-
-Expected data: `{"status":"ok","version":"0.1.0"}`
-
-If this fails, make sure Postgres is started (`docker compose up -d postgres`), then contact [aj@clarklab.tech](mailto:aj@clarklab.tech)
+Configure container health checks per service in **Settings → Health Checks**. The dashboard shows **Not configured**, **Pending**, **Passed**, or **Failed**. A failed check automatically stops the service.
 
 ### Project layout
 

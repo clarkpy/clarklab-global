@@ -72,8 +72,8 @@ This starts Postgres, the API, and the Caddy edge proxy. Restart the tunnel afte
 Verify the tunnel path works:
 
 ```bash
-curl http://127.0.0.1:3000/health
-curl https://api.clarklab.tech/health
+curl http://127.0.0.1:3000/api/public/status
+curl https://api.clarklab.tech/api/public/status
 ```
 
 If the public URL returns **502**, the API is not reachable yet. Check the API container and tunnel:
@@ -83,7 +83,7 @@ docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs api --tail 50
 systemctl status clarklab-tunnel
 systemctl restart clarklab-tunnel
-curl https://api.clarklab.tech/health
+curl https://api.clarklab.tech/api/public/status
 ```
 
 Tunnel logs like `Unable to reach the origin service` at the same time as `docker compose up` usually mean the API was still starting. Local `curl http://127.0.0.1:3000/health` succeeding while the public URL fails is the same pattern — restart the tunnel after the API is healthy.

@@ -10,18 +10,38 @@ export async function syncContainerMetrics(
     memoryUsedMb?: number
     memoryLimitMb?: number
     restartCount?: number
+    healthStatus?: string
   }>,
 ) {
   for (const item of containers) {
     const serviceId = item.serviceId?.trim()
     if (!serviceId) continue
 
+    const envResult = await pool.query(
+      `SELECT environment, status
+       FROM service_environments
+       WHERE service_id = $1 AND node_id = $2`,
+      [serviceId, nodeId],
+    )
+    const envRow = envResult.rows[0]
+    if (!envRow) continue
+
+    const healthStatus = item.healthStatus?.trim().toLowerCase() ?? ''
+    let nextStatus = envRow.status as string
+
+    if (healthStatus === 'unhealthy' && nextStatus === 'running') {
+      nextStatus = 'degraded'
+    } else if (healthStatus === 'healthy' && nextStatus === 'degraded') {
+      nextStatus = 'running'
+    }
+
     await pool.query(
       `UPDATE service_environments
        SET cpu_percent = $3,
            memory_used_mb = $4,
            memory_limit_mb = $5,
-           restart_count = COALESCE($6, restart_count)
+           restart_count = COALESCE($6, restart_count),
+           status = $7
        WHERE service_id = $1 AND node_id = $2`,
       [
         serviceId,
@@ -30,8 +50,13 @@ export async function syncContainerMetrics(
         item.memoryUsedMb ?? null,
         item.memoryLimitMb ?? null,
         item.restartCount ?? null,
+        nextStatus,
       ],
     )
+
+    if (nextStatus !== envRow.status) {
+      await emitServiceStatusUpdated(serviceId, envRow.environment as string, nextStatus)
+    }
 
     const limitMb = item.memoryLimitMb ?? 0
     const usedMb = item.memoryUsedMb ?? 0

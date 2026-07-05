@@ -31,6 +31,7 @@ import {
 import { ServiceStatusIndicator } from '@/components/ui/StatusBadge'
 import { TerminalLogPanel, type TerminalLogLine } from '@/components/TerminalLogPanel'
 import { ServiceSettingsPanel } from '@/components/ServiceSettingsPanel'
+import { ServiceHealthCheckIndicator } from '@/components/ServiceHealthCheckIndicator'
 import { Reveal, RevealGroup } from '@/components/layout/Reveal'
 import { DetailPageSkeleton } from '@/components/DetailPageSkeleton'
 import { DetailPageHeader } from '@/components/layout/DetailPageHeader'
@@ -1042,7 +1043,15 @@ export default function ServiceDetailPage() {
                   />
                 }
               />
-              <OverviewField label="health check" value={serviceState.healthCheck} />
+              <div className="theme-glass rounded-2xl px-4 py-3">
+                <p className="theme-muted text-[10px] uppercase tracking-[0.3em]">health check</p>
+                <div className="mt-2">
+                  <ServiceHealthCheckIndicator
+                    status={serviceState.healthCheckStatus ?? 'notconfigured'}
+                    className="items-start"
+                  />
+                </div>
+              </div>
               {serviceState.repository && (
                 <OverviewField label="repository" value={serviceState.repository} copyable />
               )}

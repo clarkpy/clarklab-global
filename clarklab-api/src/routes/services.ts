@@ -16,10 +16,12 @@ import {
 import { resolveContainerPort } from '../lib/databaseTemplates.js'
 import {
   DEFAULT_SERVICE_RESTART,
+  healthCheckFromDeployConfig,
   mergeDeploySettings,
   restartSettingsFromDeployConfig,
   storageFromDeployConfig,
 } from '../lib/serviceDeployConfig.js'
+import { resolveHealthCheckStatus } from '../lib/serviceHealthCheck.js'
 import { containerPortFromDeployConfig } from '../lib/databaseTemplates.js'
 import { parseBody, copyServiceEnvironmentSchema, updateServiceSettingsSchema } from '../lib/validation.js'
 import { canUseNodeForProject } from '../lib/nodeAccess.js'
@@ -199,6 +201,8 @@ serviceRoutes.get('/', async (c) => {
        e.port,
        e.uptime,
        e.node_id,
+       e.health_check_status,
+       s.deploy_config,
        n.name AS node_name
      FROM services s
      JOIN projects p ON p.id = s.project_id
@@ -209,20 +213,27 @@ serviceRoutes.get('/', async (c) => {
     filter.values,
   )
 
-  const services = result.rows.map((row) => ({
-    id: row.id as string,
-    name: row.name as string,
-    projectId: row.project_id as string,
-    project: row.project_name as string,
-    environment: (row.environment as 'development' | 'production') ?? 'production',
-    status: (row.status as string) ?? 'stopped',
-    type: row.type as string,
-    url: (row.url as string) ?? '',
-    port: (row.port as number | null) ?? 0,
-    uptime: (row.uptime as string) ?? '',
-    nodeId: (row.node_id as string | null) ?? null,
-    nodeName: (row.node_name as string | null) ?? null,
-  }))
+  const services = result.rows.map((row) => {
+    const deployConfig = (row.deploy_config as Record<string, unknown> | null) ?? {}
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      projectId: row.project_id as string,
+      project: row.project_name as string,
+      environment: (row.environment as 'development' | 'production') ?? 'production',
+      status: (row.status as string) ?? 'stopped',
+      type: row.type as string,
+      url: (row.url as string) ?? '',
+      port: (row.port as number | null) ?? 0,
+      uptime: (row.uptime as string) ?? '',
+      nodeId: (row.node_id as string | null) ?? null,
+      nodeName: (row.node_name as string | null) ?? null,
+      healthCheckStatus: resolveHealthCheckStatus(
+        deployConfig,
+        row.health_check_status as string | undefined,
+      ),
+    }
+  })
 
   return c.json(services)
 })
@@ -254,7 +265,8 @@ serviceRoutes.get('/:serviceId', async (c) => {
        e.cpu_percent,
        e.memory_used_mb,
        e.memory_limit_mb,
-       e.restart_count
+       e.restart_count,
+       e.health_check_status
      FROM services s
      JOIN projects p ON p.id = s.project_id
      LEFT JOIN service_environments e
@@ -311,7 +323,11 @@ serviceRoutes.get('/:serviceId', async (c) => {
     containerPort: containerPortFromDeployConfig(deployConfig) || undefined,
     storage: storageFromDeployConfig(deployConfig),
     restart: restartSettingsFromDeployConfig(deployConfig),
-    healthCheck: '',
+    healthCheck: healthCheckFromDeployConfig(deployConfig),
+    healthCheckStatus: resolveHealthCheckStatus(
+      deployConfig,
+      row.health_check_status as string | undefined,
+    ),
   }
 
   trackServiceUsage(c, row.project_id as string, serviceId, 'view')

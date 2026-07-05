@@ -1,11 +1,12 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createHmac, randomBytes } from 'node:crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { pool } from '../db/pool.js'
+import { config } from '../config.js'
 
 const RESET_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
 
 function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex')
+  return createHmac('sha256', config.passwordResetTokenSecret).update(token).digest('hex')
 }
 
 export function generatePasswordResetToken(): string {

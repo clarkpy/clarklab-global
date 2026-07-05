@@ -20,6 +20,7 @@ openssl rand -hex 32   # JWT_SECRET
 openssl rand -hex 32   # INTEGRATION_ENCRYPTION_KEY (must differ from JWT_SECRET)
 openssl rand -hex 16   # SIGNUP_ACCESS_CODE
 openssl rand -hex 24   # POSTGRES_PASSWORD
+openssl rand -hex 32   # PASSWORD_RESET_TOKEN_SECRET
 ```
 
 ---

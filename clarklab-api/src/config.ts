@@ -10,6 +10,11 @@ const isProduction = nodeEnv === 'production'
 
 const WEAK_JWT_SECRETS = new Set(['dev-secret-change-me', 'change-me-in-production'])
 const WEAK_ACCESS_CODES = new Set(['demo-homelab'])
+const WEAK_PASSWORD_RESET_TOKEN_SECRETS = new Set([
+  'change-me-in-production',
+  'replace-with-openssl-rand-hex-32',
+  'use-a-strong-secret',
+])
 
 function requireEnv(name: string, devFallback?: string): string {
   const value = process.env[name]?.trim()
@@ -24,6 +29,7 @@ export function assertProductionSecrets() {
   const jwtSecret = process.env.JWT_SECRET?.trim() ?? ''
   const integrationKey = process.env.INTEGRATION_ENCRYPTION_KEY?.trim() ?? ''
   const signupCode = process.env.SIGNUP_ACCESS_CODE?.trim() ?? ''
+  const passwordResetTokenSecret = process.env.PASSWORD_RESET_TOKEN_SECRET?.trim() ?? ''
 
   if (!jwtSecret || WEAK_JWT_SECRETS.has(jwtSecret)) {
     throw new Error('JWT_SECRET must be set to a strong unique value in production')
@@ -37,6 +43,9 @@ export function assertProductionSecrets() {
   if (!signupCode || WEAK_ACCESS_CODES.has(signupCode)) {
     throw new Error('SIGNUP_ACCESS_CODE must be set to a strong unique value in production')
   }
+  if (!passwordResetTokenSecret || WEAK_PASSWORD_RESET_TOKEN_SECRETS.has(passwordResetTokenSecret)) {
+    throw new Error('PASSWORD_RESET_TOKEN_SECRET must be set to a strong unique value in production',)
+  }
 }
 
 export const config = {
@@ -44,6 +53,7 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL ?? 'postgresql://clarklab:clarklab@localhost:5432/clarklab',
   jwtSecret: requireEnv('JWT_SECRET', 'dev-secret-change-me'),
   signupAccessCode: requireEnv('SIGNUP_ACCESS_CODE', 'demo-homelab'),
+  passwordResetTokenSecret: requireEnv('PASSWORD_RESET_TOKEN_SECRET', 'replace-with-openssl-rand-hex-32'),
   serverUrl: process.env.CLARKLAB_SERVER_URL ?? 'http://localhost:3000',
   agentInstallUrl: process.env.CLARKLAB_AGENT_INSTALL_URL ?? 'http://localhost:3000/agent/install.sh',
   corsOrigins: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')

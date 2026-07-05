@@ -10,7 +10,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { pool } from '../db/pool.js'
 import { config } from '../config.js'
-import {requireSysadmin, requireUser} from '../middleware/auth.js'
+import {requireSysadmin, requireUser, requireAgent} from '../middleware/auth.js'
 import type { AppVariables } from '../types.js'
 import {
   formatTimestamp,
@@ -766,20 +766,11 @@ agentRoutes.post('/register', async (c) => {
   })
 })
 
-agentRoutes.post('/tasks/:taskId/complete', async (c) => {
-  const header = c.req.header('Authorization')
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return c.json({ error: 'Unauthorized' }, 401)
-
-  let nodeId: string
-  try {
-    const { verifyAgentToken } = await import('../lib/jwt.js')
-    nodeId = verifyAgentToken(token).sub
-  } catch {
-    return c.json({ error: 'Invalid agent token' }, 401)
-  }
+agentRoutes.post('/tasks/:taskId/complete', requireAgent, async (c) => {
+  const nodeId = c.get('nodeId')
 
   const taskId = c.req.param('taskId')
+  if (!taskId) return c.json({ error: 'Task ID required' }, 400)
   const body = await c.req.json<{
     status?: string
     containerId?: string
@@ -920,20 +911,12 @@ agentRoutes.post('/tasks/:taskId/complete', async (c) => {
   return c.json({ success: true, taskId, status, serviceStatus })
 })
 
-agentRoutes.post('/updates/:taskId/progress', async (c) => {
-  const header = c.req.header('Authorization')
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return c.json({ error: 'Unauthorized' }, 401)
-
-  let nodeId: string
-  try {
-    const { verifyAgentToken } = await import('../lib/jwt.js')
-    nodeId = verifyAgentToken(token).sub
-  } catch {
-    return c.json({ error: 'Invalid agent token' }, 401)
-  }
+agentRoutes.post('/updates/:taskId/progress', requireAgent, async (c) => {
+  const nodeId = c.get('nodeId')
 
   const taskId = c.req.param('taskId')
+  if (!taskId) return c.json({ error: 'Task ID required' }, 400)
+
   const body = await c.req.json<{ message?: string }>().catch(() => ({}) as { message?: string })
   const message = body.message?.trim()
   if (!message) {
@@ -946,20 +929,11 @@ agentRoutes.post('/updates/:taskId/progress', async (c) => {
   return c.json({ success: true })
 })
 
-agentRoutes.post('/updates/:taskId/complete', async (c) => {
-  const header = c.req.header('Authorization')
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return c.json({ error: 'Unauthorized' }, 401)
-
-  let nodeId: string
-  try {
-    const { verifyAgentToken } = await import('../lib/jwt.js')
-    nodeId = verifyAgentToken(token).sub
-  } catch {
-    return c.json({ error: 'Invalid agent token' }, 401)
-  }
-
+agentRoutes.post('/updates/:taskId/complete', requireAgent, async (c) => {
+  const nodeId = c.get('nodeId')
   const taskId = c.req.param('taskId')
+  if (!taskId) return c.json({ error: 'Task ID required' }, 400)
+    
   const body = await c.req.json<{
     status?: string
     message?: string
@@ -997,18 +971,8 @@ agentRoutes.post('/updates/:taskId/complete', async (c) => {
   return c.json({ success: true, taskId, status })
 })
 
-agentRoutes.post('/heartbeat', async (c) => {
-  const header = c.req.header('Authorization')
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return c.json({ error: 'Unauthorized' }, 401)
-
-  let nodeId: string
-  try {
-    const { verifyAgentToken } = await import('../lib/jwt.js')
-    nodeId = verifyAgentToken(token).sub
-  } catch {
-    return c.json({ error: 'Invalid agent token' }, 401)
-  }
+agentRoutes.post('/heartbeat', requireAgent, async (c) => {
+  const nodeId = c.get('nodeId')
 
   const body = await c.req.json<{
     cpuPercent: number

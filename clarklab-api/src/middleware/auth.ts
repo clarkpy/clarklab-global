@@ -51,22 +51,29 @@ export async function requireSysadmin(c: Context<{ Variables: AppVariables }>, n
 
 export const requireAdmin = requireSysadmin
 
-export async function requireAgent(c: Context, next: Next) {
+export async function requireAgent(
+  c: Context<{ Variables: AppVariables }>,
+  next: Next,
+) {
   const header = c.req.header('Authorization')
   const token = header?.startsWith('Bearer ') ? header.slice(7) : null
   if (!token) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
+
+  let payload
   try {
     const { verifyAgentToken } = await import('../lib/jwt.js')
-    const payload = verifyAgentToken(token)
-    const currentVersion = await getAgentTokenVersion(payload.sub)
-    if (currentVersion !== payload.av) {
-      return c.json({ error: 'Agent session expired' }, 401)
-    }
-    c.set('nodeId', payload.sub)
-    await next()
+    payload = verifyAgentToken(token)
   } catch {
     return c.json({ error: 'Invalid agent token' }, 401)
   }
+
+  const currentVersion = await getAgentTokenVersion(payload.sub)
+  if (currentVersion !== payload.av) {
+    return c.json({ error: 'Agent session expired' }, 401)
+  }
+
+  c.set('nodeId', payload.sub)
+  await next()
 }

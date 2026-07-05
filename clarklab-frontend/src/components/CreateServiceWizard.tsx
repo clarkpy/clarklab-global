@@ -1215,12 +1215,34 @@ export function CreateServiceWizard({
 function isValidGitHubRepoUrl(repository: string): boolean {
   const trimmed = repository.trim()
   if (!trimmed) return false
-  if (/^git@github\.com:[^/]+\/.+/i.test(trimmed)) return true
+
+  const sshPattern=
+    /^git@github\.com:[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\.git)?$/i
+
+  if (sshPattern.test(trimmed)) return true
+
   try {
-    const url = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`)
-    if (!url.hostname.toLowerCase().includes('github.com')) return false
-    const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/')
-    return parts.length >= 2 && Boolean(parts[0]) && Boolean(parts[1])
+    const url = trimmed.includes('://')
+      ? new URL(trimmed)
+      : new URL(`https://${trimmed}`)
+    if (url.protocol !== 'https:') return false
+    if (url.hostname.toLowerCase() !== 'github.com') return false
+    
+    if (url.username || url.password) return false
+    if (url.search || url.hash) return false
+    if (url.port) return false
+
+    const pathname = url.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\.git$/i, '')
+
+    const parts = pathname.split('/')
+    if (parts.length !== 2) return false
+
+    const [owner, repo] = parts
+    const safeSegment = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+    
+    return safeSegment.test(owner) && safeSegment.test(repo)
   } catch {
     return false
   }

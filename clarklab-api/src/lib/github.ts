@@ -13,32 +13,57 @@ const GITHUB_HEADERS = (accessToken: string) => ({
   'User-Agent': 'clarklab-api',
 })
 
-export function parseGitHubRepoUrl(repository: string): ParsedGitHubRepo | null {
+export function parseGitHubRepoUrl(
+  repository: string,
+): ParsedGitHubRepo | null {
   const trimmed = repository.trim()
   if (!trimmed) return null
 
-  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/i)
+  const sshMatch = trimmed.match(
+    /^git@github\.com:([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*?)(?:\.git)?$/i,
+  )
   if (sshMatch) {
     return {
       owner: sshMatch[1],
-      repo: sshMatch[2].replace(/\.git$/i, ''),
+      repo: sshMatch[2],
       host: 'github.com',
     }
   }
 
   try {
-    const url = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`)
-    if (!url.hostname.toLowerCase().includes('github.com')) return null
-    const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/')
-    if (parts.length < 2 || !parts[0] || !parts[1]) return null
+    const url = trimmed.includes('://')
+      ? new URL(trimmed)
+      : new URL(`https://${trimmed}`)
+
+    if (url.hostname.toLowerCase() !== 'github.com') return null
+    if (url.protocol !== 'https:') return null
+
+    if (url.username || url.password) return null
+    if (url.search || url.hash) return null
+    if (url.port) return null
+
+    const pathname = url.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\.git$/i, '')
+
+    const parts = pathname.split('/')
+    if (parts.length !== 2) return null
+
+    const owner = parts[0]
+    const repo = parts[1]
+    const safeSegment = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+    if (!owner || !repo) return null
+    if (!safeSegment.test(owner) || !safeSegment.test(repo)) return null
+
     return {
-      owner: parts[0],
-      repo: parts[1],
-      host: url.hostname.toLowerCase(),
+      owner,
+      repo,
+      host: 'github.com',
     }
   } catch {
     return null
   }
+  
 }
 
 export function buildRepositoryUrl(repository: string): string {

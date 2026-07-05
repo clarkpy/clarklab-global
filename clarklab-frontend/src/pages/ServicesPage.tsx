@@ -451,9 +451,6 @@ export default function ServicesPage() {
                       )}
                     </p>
                   </div>
-                  <ServiceHealthCheckIndicator
-                    status={service.healthCheckStatus ?? 'notconfigured'}
-                  />
                   <ServiceStatusIndicator status={service.status} />
                 </div>
               </div>

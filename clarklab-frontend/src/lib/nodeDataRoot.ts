@@ -19,16 +19,19 @@ export function appendDataRootFlag(command: string, dataRoot: string): string {
 function resolveInstallCommand(
   registration: { token: string; installCommand: string },
 ): string {
+  if (registration.installCommand) {
+    return registration.installCommand
+  }
+
   const installUrl =
     AGENT_INSTALL_URL || (API_URL ? `${API_URL.replace(/\/$/, '')}/agent/install.sh` : '')
-  const serverUrl =
-    parseServerUrlFromInstallCommand(registration.installCommand) || CLARKLAB_SERVER_URL || API_URL
+  const serverUrl = CLARKLAB_SERVER_URL || API_URL
 
   if (registration.token && installUrl && serverUrl) {
     return buildAgentInstallCommand(installUrl, serverUrl, registration.token)
   }
 
-  return registration.installCommand
+  return ''
 }
 
 export function withRegistrationDataRoot<

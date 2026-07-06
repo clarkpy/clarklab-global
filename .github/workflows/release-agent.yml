@@ -116,8 +116,9 @@ jobs:
         run: |
           set -euo pipefail
 
-                    COMMIT_SHA="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          COMMIT_SHA="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
           VERSION="${GITHUB_REF_NAME#agent-v}"
+          PUBLISHED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
             --arg tag "${GITHUB_REF_NAME}" \
@@ -129,11 +130,28 @@ jobs:
               commitSha: $commitSha
             }' > dist/agent-release.json
 
+          jq -n \
+            --arg version "${VERSION}" \
+            --arg tag "${GITHUB_REF_NAME}" \
+            --arg commitSha "${COMMIT_SHA}" \
+            --arg publishedAt "${PUBLISHED_AT}" \
+            '{
+              schemaVersion: 1,
+              channel: "stable",
+              agent: {
+                version: $version,
+                tag: $tag,
+                commitSha: $commitSha
+              },
+              publishedAt: $publishedAt
+            }' > dist/latest-version.json
+
           cd dist
           chmod +x clarklab-agent-linux-*
           sha256sum clarklab-agent-linux-* > checksums.txt
 
           cat agent-release.json
+          cat latest-version.json
           cat checksums.txt
 
       - name: Publish release
@@ -149,6 +167,7 @@ jobs:
             dist/clarklab-agent-linux-arm64 \
             dist/checksums.txt \
             dist/agent-release.json \
+            dist/latest-version.json \
             --verify-tag \
             --generate-notes \
             --title "Clarklab Agent ${GITHUB_REF_NAME#agent-v}"

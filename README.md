@@ -9,8 +9,8 @@
 ### Quick start
 
 ```bash
-cp .env.example .env
 npm install
+npm run setup
 npm run dev:stack
 ```
 
@@ -51,4 +51,3 @@ clarklab-global/
 ├── scripts/install.sh  Agent installer
 └── docker-compose.yml  Postgres + API
 ```
-

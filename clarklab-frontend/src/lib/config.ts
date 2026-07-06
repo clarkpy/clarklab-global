@@ -28,7 +28,7 @@ export const REGISTRATION_TOKEN_TTL_MINUTES = Number(
 export const REGISTRATION_TOKEN_TTL_MIN = 15
 export const REGISTRATION_TOKEN_TTL_MAX = 10080
 
-export const LATEST_AGENT_VERSION = import.meta.env.VITE_LATEST_AGENT_VERSION ?? '0.1.0'
+export const LATEST_AGENT_VERSION = import.meta.env.VITE_LATEST_AGENT_VERSION ?? '0.1.3'
 
 export const SERVICE_BASE_DOMAIN =
   import.meta.env.VITE_CLARKLAB_SERVICE_BASE_DOMAIN?.trim().toLowerCase() || APP_DOMAIN

@@ -9,9 +9,28 @@ fi
 TUNNEL_NAME="${1:-clarklab-api}"
 API_HOSTNAME="${2:-api.yourdomain.com}"
 BASE_DOMAIN="${3:-yourdomain.com}"
+APP_HOSTNAME="${4:-app.${BASE_DOMAIN}}"
+APP_CNAME_TARGET="${5:-}"
 WILDCARD_HOSTNAME="*.${BASE_DOMAIN}"
 CONFIG_DIR="/etc/cloudflared"
 export CLOUDFLARED_HOME="$CONFIG_DIR"
+
+if [[ ! "$TUNNEL_NAME" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+  echo "Invalid tunnel name: ${TUNNEL_NAME}"
+  exit 1
+fi
+
+for hostname in "$API_HOSTNAME" "$BASE_DOMAIN" "$APP_HOSTNAME"; do
+  if [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+    echo "Invalid hostname: ${hostname}"
+    exit 1
+  fi
+done
+
+if [[ -n "$APP_CNAME_TARGET" && ! "$APP_CNAME_TARGET" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+  echo "Invalid dashboard CNAME target: ${APP_CNAME_TARGET}"
+  exit 1
+fi
 
 migrate_legacy_cloudflared() {
   local legacy="${HOME}/.cloudflared"
@@ -121,6 +140,118 @@ validate_config() {
   fi
 }
 
+upsert_dashboard_cname() {
+  if [[ -z "$APP_CNAME_TARGET" ]]; then
+    echo "Dashboard CNAME target was not provided; skipping ${APP_HOSTNAME}"
+    return 0
+  fi
+
+  if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+    echo "CLOUDFLARE_API_TOKEN is not set; create this record manually."
+    echo "  Type: CNAME"
+    echo "  Name: ${APP_HOSTNAME}"
+    echo "  Target: ${APP_CNAME_TARGET}"
+    echo "  Proxy: DNS only (gray cloud)"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y jq
+  fi
+
+  local api_base zone_response zone_id records_response record_id record_type payload result
+  api_base="https://api.cloudflare.com/client/v4"
+
+  zone_response="$(
+    curl -fsS \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      "${api_base}/zones?name=${BASE_DOMAIN}&status=active"
+  )"
+
+  zone_id="$(
+    jq -er '
+      if .success == true and (.result | length) == 1
+      then .result[0].id
+      else error("Cloudflare zone was not found or was ambiguous")
+      end
+    ' <<<"$zone_response"
+  )"
+
+  records_response="$(
+    curl -fsS \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      "${api_base}/zones/${zone_id}/dns_records?name=${APP_HOSTNAME}"
+  )"
+
+  jq -e '.success == true' <<<"$records_response" >/dev/null
+
+  record_id="$(jq -r '.result[0].id // empty' <<<"$records_response")"
+  record_type="$(jq -r '.result[0].type // empty' <<<"$records_response")"
+
+  if [[ -n "$record_id" && "$record_type" != "CNAME" ]]; then
+    echo "${APP_HOSTNAME} already has a ${record_type} record."
+    echo "Remove or change that record manually before continuing."
+    exit 1
+  fi
+
+  payload="$(
+    jq -nc \
+      --arg name "$APP_HOSTNAME" \
+      --arg content "$APP_CNAME_TARGET" \
+      '{
+        type: "CNAME",
+        name: $name,
+        content: $content,
+        ttl: 1,
+        proxied: false,
+        comment: "Managed by ClarkLab script"
+      }'
+  )"
+
+  if [[ -n "$record_id" ]]; then
+    result="$(
+      curl -fsS \
+        --request PATCH \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data "$payload" \
+        "${api_base}/zones/${zone_id}/dns_records/${record_id}"
+    )"
+  else
+    result="$(
+      curl -fsS \
+        --request POST \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data "$payload" \
+        "${api_base}/zones/${zone_id}/dns_records"
+    )"
+  fi
+
+  jq -e '.success == true' <<<"$result" >/dev/null
+  echo "Dashboard DNS configured: ${APP_HOSTNAME} -> ${APP_CNAME_TARGET}"
+}
+
+route_tunnel_dns() {
+  local hostname="$1" output
+
+  if output="$(cloudflared tunnel route dns "$TUNNEL_NAME" "$hostname" 2>&1)"; then
+    echo "$output"
+    return 0
+  fi
+
+  if grep -qiE 'already exists|already has a route' <<<"$output"; then
+    echo "DNS route already exists for ${hostname}"
+    return 0
+  fi
+
+  echo "$output" >&2
+  return 1
+}
+
 install_service() {
   local script_dir
   script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -147,8 +278,9 @@ ensure_credentials "$TUNNEL_UUID"
 write_config "$TUNNEL_UUID" "$CREDS"
 validate_config
 
-cloudflared tunnel route dns "$TUNNEL_NAME" "$API_HOSTNAME" || true
-cloudflared tunnel route dns "$TUNNEL_NAME" "$WILDCARD_HOSTNAME" || true
+route_tunnel_dns "$API_HOSTNAME"
+route_tunnel_dns "$WILDCARD_HOSTNAME"
+upsert_dashboard_cname
 
 install_service
 

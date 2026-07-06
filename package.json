@@ -6,6 +6,8 @@
     "clarklab-frontend"
   ],
   "scripts": {
+    "setup": "node scripts/setup-wizard.mjs",
+    "test:setup": "node --test scripts/setup-wizard.test.mjs",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w clarklab-api\" \"npm run dev -w clarklab-frontend\"",
     "dev:stack": "docker compose up -d postgres && npm run dev",
     "dev:api": "npm run dev -w clarklab-api",

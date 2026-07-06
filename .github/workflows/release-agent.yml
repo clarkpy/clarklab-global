@@ -100,7 +100,7 @@ jobs:
       contents: write
 
     steps:
-      - name Check out release tag
+      - name: Check out release tag
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -116,9 +116,24 @@ jobs:
         run: |
           set -euo pipefail
 
+                    COMMIT_SHA="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          VERSION="${GITHUB_REF_NAME#agent-v}"
+
+          jq -n \
+            --arg tag "${GITHUB_REF_NAME}" \
+            --arg version "${VERSION}" \
+            --arg commitSha "${COMMIT_SHA}" \
+            '{
+              tag: $tag,
+              version: $version,
+              commitSha: $commitSha
+            }' > dist/agent-release.json
+
           cd dist
           chmod +x clarklab-agent-linux-*
           sha256sum clarklab-agent-linux-* > checksums.txt
+
+          cat agent-release.json
           cat checksums.txt
 
       - name: Publish release
@@ -133,6 +148,7 @@ jobs:
             dist/clarklab-agent-linux-amd64 \
             dist/clarklab-agent-linux-arm64 \
             dist/checksums.txt \
+            dist/agent-release.json \
             --verify-tag \
             --generate-notes \
             --title "Clarklab Agent ${GITHUB_REF_NAME#agent-v}"

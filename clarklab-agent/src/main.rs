@@ -8,7 +8,6 @@ mod git;
 mod journal;
 mod service_log;
 mod tasks;
-mod toolchain;
 mod upgrade;
 
 use clap::{Parser, Subcommand};

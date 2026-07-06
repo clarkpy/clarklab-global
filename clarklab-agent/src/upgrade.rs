@@ -1,9 +1,6 @@
 use crate::agent_log::AgentLogBuffer;
 use crate::api::{AgentUpdateCompleteRequest, AgentUpdateTask};
 use crate::config::{save_config, AgentConfig, AGENT_VERSION};
-use crate::git;
-use crate::service_log::TaskLogger;
-use crate::toolchain::cargo_command;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -23,6 +20,14 @@ struct PendingCompletion {
     message: String,
     agent_version: String,
     deployed_commit_sha: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentReleaseManifest {
+    tag: String,
+    version: String,
+    commit_sha: String,
 }
 
 fn pending_completion_path(config_path: &Path) -> PathBuf {
@@ -139,7 +144,7 @@ pub async fn maybe_start_agent_update(
 
         // Keep below API STALE_CLAIM_MINUTES (90) so long builds are not marked failed server-side.
         let build_result = tokio::time::timeout(
-            Duration::from_secs(45 * 60),
+            Duration::from_secs(10 * 60),
             tokio::task::spawn_blocking({
                 let task = task.clone();
                 move || run_agent_update(&task, progress)
@@ -150,7 +155,7 @@ pub async fn maybe_start_agent_update(
         let mut result = match build_result {
             Ok(Ok(inner)) => inner,
             Ok(Err(err)) => Err(format!("agent update worker failed: {err}")),
-            Err(_) => Err("agent update timed out after 45 minutes".to_string()),
+            Err(_) => Err("agent update timed out after 10 minutes".to_string()),
         };
 
         let deployed_sha = task.commit_sha.trim().to_string();
@@ -317,104 +322,232 @@ fn restart_agent_service(agent_logs: &mut AgentLogBuffer) {
     }
 }
 
+fn release_asset_name() -> Result<&'static str, String> {
+    match std::env::consts::ARCH {
+        "x86_64" => Ok("clarklab-agent-linux-amd64"),
+        "aarch64" => Ok("clarklab-agent-linux-arm64"),
+        architecture => Err(format!("Unsupported architecture: {architecture}")),
+    }
+}
+
+fn download_file(url: &str, destination: &Path) -> Result<(), String> {
+    let output = Command::new("curl")
+        .args([
+            "--fail",
+            "--location",
+            "--silent",
+            "--show-error",
+            "--retry",
+            "3",
+            "--output",
+        ])
+        .arg(destination)
+        .arg(url)
+        .output()
+        .map_err(|err| format!("failed to start curl: {err}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "download failed for {url}: {}",
+        String::from_utf8_lossy(&output.stderr).trim()
+    ))
+}
+
+fn expected_checksum(checksums: &str, asset: &str) -> Option<String> {
+    checksums.lines().find_map(|line| {
+        let mut fields = line.split_whitespace();
+        let checksum = fields.next()?;
+        let filename = fields.next()?;
+
+        if filename == asset && checksum.len() == 64 {
+            Some(checksum.to_ascii_lowercase())
+        } else {
+            None
+        }
+    })
+}
+
+fn actual_checksum(path: &Path) -> Result<String, String> {
+    let output = Command::new("sha256sum")
+        .arg(path)
+        .output()
+        .map_err(|err| format!("failed to start sha256sum: {err}"))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "sha256sum failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .split_whitespace()
+        .next()
+        .map(|value| value.to_ascii_lowercase())
+        .ok_or_else(|| "sha256sum returned no checksum".to_string())
+}
+
+fn install_downloaded_binary(update_root: &Path) -> Result<(), String> {
+    let output = Command::new("sudo")
+        .arg("/usr/local/sbin/clarklab-install-agent-binary")
+        .arg(update_root)
+        .output()
+        .map_err(|err| format!("failed to run agent installer: {err}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "agent installer failed: {}",
+        String::from_utf8_lossy(&output.stderr).trim()
+    ))
+}
+
 fn run_agent_update(
     task: &AgentUpdateTask,
     mut on_progress: impl FnMut(String),
 ) -> Result<String, String> {
-    let repo_dir = std::env::temp_dir()
-        .join(format!("clarklab-upgrade-{}", task.id))
-        .join("repo");
-    if repo_dir.exists() {
-        fs::remove_dir_all(&repo_dir)
-            .map_err(|err| format!("failed to clear upgrade directory: {err}"))?;
-    }
-    if let Some(parent) = repo_dir.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("failed to create upgrade directory: {err}"))?;
+    if task.release_base_url.trim().is_empty() {
+        return Err(
+            "This update does not include a release download URL. Update the API before updating this agent."
+                .to_string(),
+        );
     }
 
-    let mut logger = TaskLogger::new();
+    if task.release_version.trim().is_empty() || task.release_tag.trim().is_empty() {
+        return Err("Agent release version information is missing".to_string());
+    }
+
+    let asset = release_asset_name()?;
+    let update_root = std::env::temp_dir().join(format!("clarklab-upgrade-{}", task.id));
+
+    if update_root.exists() {
+        fs::remove_dir_all(&update_root)
+            .map_err(|err| format!("failed to clear update directory: {err}"))?;
+    }
+
+    let binary_directory = update_root.join("target").join("release");
+    fs::create_dir_all(&binary_directory)
+        .map_err(|err| format!("failed to create update directory: {err}"))?;
+
+    let binary_path = binary_directory.join("clarklab-agent");
+    let checksums_path = update_root.join("checksums.txt");
+    let manifest_path = update_root.join("agent-release.json");
+    let base_url = task.release_base_url.trim_end_matches('/');
 
     on_progress(format!(
-        "Cloning {} (branch {})",
-        task.repository_url, task.branch
+        "Downloading Clarklab Agent {} for {}",
+        task.release_version,
+        std::env::consts::ARCH
     ));
 
-    let header = task.git_http_header.trim();
-    git::clone_repo(
-        &task.repository_url,
-        if header.is_empty() {
-            None
-        } else {
-            Some(header)
-        },
-        &repo_dir,
-        &task.branch,
-        if task.commit_sha.trim().is_empty() {
-            None
-        } else {
-            Some(task.commit_sha.trim())
-        },
-        &mut logger,
-    )?;
+    download_file(&format!("{base_url}/{asset}"), &binary_path)?;
 
-    let root = normalize_root_directory(&task.root_directory);
-    let build_dir = repo_dir.join(root);
-    if !build_dir.join("Cargo.toml").exists() {
+    download_file(&format!("{base_url}/checksums.txt"), &checksums_path)?;
+
+    download_file(&format!("{base_url}/agent-release.json"), &manifest_path)?;
+
+    let manifest_raw = fs::read_to_string(&manifest_path)
+        .map_err(|err| format!("failed to read release manifest: {err}"))?;
+
+    let manifest: AgentReleaseManifest = serde_json::from_str(&manifest_raw)
+        .map_err(|err| format!("invalid release manifest: {err}"))?;
+
+    if manifest.tag != task.release_tag {
         return Err(format!(
-            "agent source not found at {}/{}",
-            task.repository, task.root_directory
+            "Release tag mismatch: expected {}, received {}",
+            task.release_tag, manifest.tag
         ));
     }
 
-    on_progress("Building clarklab-agent from source".to_string());
-    let build_output = cargo_command()?
-        .arg("build")
-        .arg("--release")
-        .arg("--locked")
-        .current_dir(&build_dir)
-        .env("CARGO_NET_RETRY", "2")
-        .output()
-        .map_err(|err| format!("failed to run cargo build: {err}"))?;
-
-    if !build_output.status.success() {
-        let stderr = String::from_utf8_lossy(&build_output.stderr);
-        return Err(format!("cargo build failed: {stderr}"));
-    }
-
-    on_progress("Installing updated agent binary".to_string());
-    let install_output = Command::new("sudo")
-        .arg("/usr/local/sbin/clarklab-install-agent-binary")
-        .arg(&build_dir)
-        .output()
-        .map_err(|err| format!("failed to run install helper: {err}"))?;
-
-    if !install_output.status.success() {
-        let stderr = String::from_utf8_lossy(&install_output.stderr);
+    if manifest.version != task.release_version {
         return Err(format!(
-            "agent install helper failed: {stderr}. Re-run install.sh on this node to configure sudo access."
+            "Release version mismatch: expected {}, received {}",
+            task.release_version, manifest.version
         ));
     }
 
-    if let Some(parent) = repo_dir.parent() {
-        let _ = fs::remove_dir_all(parent);
+    if !task.commit_sha.trim().is_empty() && manifest.commit_sha != task.commit_sha.trim() {
+        return Err(format!(
+            "Release {} was built from commit {}, but update task requires {}. Publish a new agent release from the current platform commit.",
+            manifest.tag,
+            manifest.commit_sha,
+            task.commit_sha.trim()
+        ));
     }
+
+    let checksums = fs::read_to_string(&checksums_path)
+        .map_err(|err| format!("failed to read checksums: {err}"))?;
+
+    let expected = expected_checksum(&checksums, asset)
+        .ok_or_else(|| format!("No checksum was published for {asset}"))?;
+
+    let actual = actual_checksum(&binary_path)?;
+
+    if actual != expected {
+        return Err(format!(
+            "Agent checksum mismatch: expected {expected}, received {actual}"
+        ));
+    }
+
+    let validation = Command::new(&binary_path)
+        .arg("--help")
+        .output()
+        .map_err(|err| format!("downloaded agent could not be executed: {err}"))?;
+
+    if !validation.status.success() {
+        return Err("Downloaded agent failed its executable validation".to_string());
+    }
+
+    on_progress("Installing verified agent binary".to_string());
+    install_downloaded_binary(&update_root)?;
+
+    let _ = fs::remove_dir_all(&update_root);
 
     Ok(format!(
-        "Agent updated to {}",
-        if task.commit_sha.trim().is_empty() {
-            AGENT_VERSION.to_string()
-        } else {
-            task.commit_sha.trim()[..7.min(task.commit_sha.trim().len())].to_string()
-        }
+        "Agent updated to {} ({})",
+        manifest.version,
+        &manifest.commit_sha[..7.min(manifest.commit_sha.len())]
     ))
 }
 
-fn normalize_root_directory(root: &str) -> std::path::PathBuf {
-    let trimmed = root.trim().trim_matches('/');
-    if trimmed.is_empty() {
-        std::path::PathBuf::from("clarklab-agent")
-    } else {
-        std::path::PathBuf::from(trimmed)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_checksum_for_release_asset() {
+        let checksums = "\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  clarklab-agent-linux-amd64
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  clarklab-agent-linux-arm64
+";
+
+        assert_eq!(
+            expected_checksum(checksums, "clarklab-agent-linux-amd64"),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_missing_checksum() {
+        assert_eq!(
+            expected_checksum("aaaaaaaa  some-other-file", "clarklab-agent-linux-amd64"),
+            None
+        );
+    }
+
+    #[test]
+    fn chooses_supported_release_asset() {
+        let result = release_asset_name();
+
+        if matches!(std::env::consts::ARCH, "x86_64" | "aarch64") {
+            assert!(result.is_ok());
+        } else {
+            assert!(result.is_err());
+        }
     }
 }

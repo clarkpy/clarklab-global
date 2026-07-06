@@ -66,9 +66,16 @@ release_asset_name() {
   machine="$(uname -m)"
 
   case "$machine" in
-    x86_64|amd64) echo "clarklab-agent-linux-amd64" ;;
-    aarch64|arm64) echo "clarklab-agent-linux-arm64" ;;
-    *) echo "Unsupported architecture: $machine" >&2; exit 1 ;;
+    x86_64|amd64)
+      echo "clarklab-agent-linux-amd64"
+      ;;
+    aarch64|arm64)
+      echo "clarklab-agent-linux-arm64"
+      ;;
+    *)
+      echo "Unsupported architecture: $machine"
+      exit 1
+      ;;
   esac
 }
 
@@ -90,7 +97,7 @@ install_prebuilt_agent() {
   local download_dir="$1"
   local asset
   local base_url
-  local unexpected_checksum
+  local expected_checksum
   local actual_checksum
 
   asset="$(release_asset_name)" || return 1
@@ -202,10 +209,6 @@ else
   echo "Created data directory at $DATA_ROOT"
 fi
 
-echo "Preparing Rust toolchain for in-place agent updates..."
-RUST_HELPER="$(resolve_helper_script ensure-system-rust.sh)"
-SERVICE_USER="$SERVICE_USER" bash "$RUST_HELPER"
-
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -227,6 +230,9 @@ if [[ "$BUILD_FROM_SOURCE" == false ]]; then
 fi
 
 if [[ "$AGENT_INSTALLED" == false ]]; then
+  echo "Preparing Rust toolchain for source-build fallback..."
+  RUST_HELPER="$(resolve_helper_script ensure-system-rust.sh)"
+  SERVICE_USER="$SERVICE_USER" bash "$RUST_HELPER"
   echo "Building Clarklab agent from source..."
 
   AGENT_SRC=""
@@ -288,8 +294,6 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Environment=CARGO_HOME=${CARGO_HOME}
-Environment=RUSTUP_HOME=${RUSTUP_HOME}
 ExecStart=${INSTALL_DIR}/clarklab-agent run --config ${CONFIG_DIR}/agent.yaml
 Restart=always
 RestartSec=10

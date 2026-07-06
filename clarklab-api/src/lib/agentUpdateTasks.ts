@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
 import { pool } from '../db/pool.js'
 import { getGitHubConnection } from './githubConnection.js'
-import { buildGitHttpHeader, buildRepositoryUrl } from './github.js'
+import { config } from '../config.js'
+import { buildGitHttpHeader, buildRepositoryUrl, parseGitHubRepoUrl } from './github.js'
 
 const STALE_CLAIM_MINUTES = 90
 export const STALE_CLAIM_TIMEOUT_MESSAGE = 'Update timed out on the node'
@@ -57,6 +58,31 @@ export async function queueAgentUpdateTask(input: {
   return id
 }
 
+function buildAgentReleaseDetails(repository: string) {
+  const parsed = parseGitHubRepoUrl(repository)
+  if (!parsed) {
+    throw new Error(`Invalid GitHub repository URL: ${repository}`)
+  }
+
+  const version = config.latestAgentVersion
+    .trim()
+    .replace(/^agent-v/i, '')
+
+  if (!version) {
+    throw new Error('Latest agent version is not configured')
+  }
+
+  const releaseTag = `agent-v${version}`
+
+  return {
+    releaseVersion: version,
+    releaseTag,
+    repositoryBaseUrl:
+     'https://github.com/${parsed.owner}/${parsed.repo}' +
+     '/releases/download/${releaseTag}',
+  }
+}
+
 export async function claimPendingAgentUpdateForNode(nodeId: string) {
   await resetStaleAgentUpdateClaims()
 
@@ -103,6 +129,8 @@ export async function claimPendingAgentUpdateForNode(nodeId: string) {
     [taskId],
   )
 
+  const release = buildAgentReleaseDetails(row.repository as string)
+
   return {
     id: taskId,
     repository: row.repository as string,
@@ -111,6 +139,9 @@ export async function claimPendingAgentUpdateForNode(nodeId: string) {
     commitSha: row.commit_sha as string,
     repositoryUrl: buildRepositoryUrl(row.repository as string),
     gitHttpHeader: buildGitHttpHeader(connection.accessToken),
+    releaseVersion: release.releaseVersion,
+    releaseTag: release.releaseTag,
+    releaseUrl: release.repositoryBaseUrl,
   }
 }
 

@@ -73,7 +73,7 @@ export const config = {
   maxHeartbeatIntervalSeconds: 300,
   heartbeatOfflineMultiplier: 3,
   registrationTokenTtlMinutes: Number(process.env.REGISTRATION_TOKEN_TTL_MINUTES ?? 1440),
-  latestAgentVersion: process.env.LATEST_AGENT_VERSION ?? '0.1.0',
+  latestAgentVersion: process.env.LATEST_AGENT_VERSION ?? '0.1.2',
   defaultAppBrandName: process.env.CLARKLAB_APP_BRAND_NAME?.trim() || 'Clarklab',
   defaultAppDomain: process.env.CLARKLAB_APP_DOMAIN?.trim().toLowerCase() || 'localhost',
   defaultNodeDataRoot: '/var/lib/clarklab/services',

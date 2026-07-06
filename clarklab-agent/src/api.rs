@@ -253,13 +253,25 @@ impl DeployTask {
 #[serde(rename_all = "camelCase")]
 pub struct AgentUpdateTask {
     pub id: String,
+    // Retained while older agents still receive source-update task fields.
+    #[allow(dead_code)]
     pub repository: String,
+    #[allow(dead_code)]
     pub branch: String,
+    #[allow(dead_code)]
     pub root_directory: String,
     #[serde(default)]
     pub commit_sha: String,
+    #[allow(dead_code)]
     pub repository_url: String,
+    #[allow(dead_code)]
     pub git_http_header: String,
+    #[serde(default)]
+    pub release_version: String,
+    #[serde(default)]
+    pub release_tag: String,
+    #[serde(default)]
+    pub release_base_url: String,
 }
 
 #[derive(Serialize)]

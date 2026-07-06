@@ -1,0 +1,132 @@
+name: Release agent
+
+on:
+  push:
+    tags:
+      - "agent-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            asset: clarklab-agent-linux-amd64
+
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            asset: clarklab-agent-linux-arm64
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Verify tag matches Cargo version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CARGO_VERSION="$(
+            awk -F ' *= *' '
+              $1 == "version" {
+                gsub(/"/, "", $2)
+                print $2
+                exit
+              }
+            ' clarklab-agent/Cargo.toml
+          )"
+
+          EXPECTED_TAG="agent-v${CARGO_VERSION}"
+
+          if [[ "${GITHUB_REF_NAME}" != "${EXPECTED_TAG}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo version ${CARGO_VERSION}"
+            echo "Expected tag: ${EXPECTED_TAG}"
+            exit 1
+          fi
+
+      - name: Test agent
+        run: cargo test --locked
+        working-directory: clarklab-agent
+
+      - name: Build static release binary
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+        working-directory: clarklab-agent
+
+      - name: Prepare release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+
+          install -m 755 \
+            "clarklab-agent/target/${{ matrix.target }}/release/clarklab-agent" \
+            "dist/${{ matrix.asset }}"
+
+          "dist/${{ matrix.asset }}" --help
+
+          file "dist/${{ matrix.asset }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download agent binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd dist
+          chmod +x clarklab-agent-linux-*
+          sha256sum clarklab-agent-linux-* > checksums.txt
+          cat checksums.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/clarklab-agent-linux-amd64 \
+            dist/clarklab-agent-linux-arm64 \
+            dist/checksums.txt \
+            --verify-tag \
+            --generate-notes \
+            --title "Clarklab Agent ${GITHUB_REF_NAME#agent-v}"

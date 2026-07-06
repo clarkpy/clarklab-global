@@ -183,7 +183,15 @@ Download the script first instead of piping into `sudo` — `sudo` reads from st
 
 1. Confirm: `systemctl status clarklab-agent`
 
-First install compiles the agent from source (~5–10 min). Requires Rust on the node.
+The installer downloads a checksum-verified prebuilt agent binary for Linux amd64 or arm64. If no matching release is available, it falls back to building from source.
+
+To force a source build:
+
+```bash
+bash /tmp/clarklab-install.sh \
+  --token <registration-token> \
+  --server https://api.clarklab.tech \
+  --build-from-source
 
 ---
 

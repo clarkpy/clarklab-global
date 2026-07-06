@@ -16,6 +16,9 @@ SERVICE_USER="clarklab"
 SERVICE_NAME="clarklab-agent"
 RUSTUP_HOME="/usr/local/rustup"
 CARGO_HOME="/usr/local/cargo"
+AGENT_RELEASE_REPOSITORY="${CLARKLAB_AGENT_RELEASE_REPOSITORY:-clarkpy/clarklab-global}"
+AGENT_VERSION="${CLARKLAB_AGENT_VERSION:-latest}"
+BUILD_FROM_SOURCE=false
 
 resolve_script_dir() {
   local source="${BASH_SOURCE[0]:-$0}"
@@ -33,12 +36,14 @@ while [[ $# -gt 0 ]]; do
     --token) TOKEN="$2"; shift 2 ;;
     --server) SERVER="$2"; shift 2 ;;
     --data-root) DATA_ROOT="$2"; shift 2 ;;
+    --agent-version) AGENT_VERSION="$2"; shift 2 ;;
+    --build-from-source) BUILD_FROM_SOURCE=true; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
 if [[ -z "$TOKEN" || -z "$SERVER" ]]; then
-  echo "Usage: install.sh --token <token> --server <url> [--data-root <path>]"
+  echo "Usage: install.sh --token <token> --server <url> [--data-root <path>] [--agent-version <version>] [--build-from-source]"
   exit 1
 fi
 
@@ -54,6 +59,89 @@ resolve_helper_script() {
   curl -fsSL "${SERVER%/}/agent/scripts/${name}" -o "$dest"
   chmod +x "$dest"
   echo "$dest"
+}
+
+release_asset_name() {
+  local machine
+  machine="$(uname -m)"
+
+  case "$machine" in
+    x86_64|amd64) echo "clarklab-agent-linux-amd64" ;;
+    aarch64|arm64) echo "clarklab-agent-linux-arm64" ;;
+    *) echo "Unsupported architecture: $machine" >&2; exit 1 ;;
+  esac
+}
+
+release_download_base() {
+  if [[ "$AGENT_VERSION" == "latest" ]]; then
+    echo "https://github.com/${AGENT_RELEASE_REPOSITORY}/releases/latest/download"
+    return
+  fi
+
+  local tag="$AGENT_VERSION"
+  if [[ "$tag" != agent-v* ]]; then
+    tag="agent-v${tag}"
+  fi
+
+  echo "https://github.com/${AGENT_RELEASE_REPOSITORY}/releases/download/${tag}"
+}
+
+install_prebuilt_agent() {
+  local download_dir="$1"
+  local asset
+  local base_url
+  local unexpected_checksum
+  local actual_checksum
+
+  asset="$(release_asset_name)" || return 1
+  base_url="$(release_download_base)"
+
+  echo "Downloading prebuilt agent from ${base_url}/${asset}..."
+
+  if ! curl -fL \
+    "${base_url}/${asset}" \
+    -o "${download_dir}/${asset}"; then
+    echo "Failed to download prebuilt agent from ${base_url}/${asset}"
+    return 1
+  fi
+
+  if ! curl -fL \
+    "${base_url}/checksums.txt" \
+    -o "${download_dir}/checksums.txt"; then
+    echo "Failed to download checksums from ${base_url}/checksums.txt"
+    return 1
+  fi
+
+  expected_checksum="$(
+    awk -v asset="$asset" '
+      $2 == asset {
+        print $1
+        exit
+      }
+    ' "${download_dir}/checksums.txt"
+  )"
+
+  if [[ ! "$expected_checksum" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    echo "The checksum file does not contain a valid checksum for ${asset}."
+    return 2
+  fi
+
+  actual_checksum="$(
+    sha256sum "${download_dir}/${asset}" | awk '{ print $1 }'
+  )"
+
+  if [[ "$actual_checksum" != "$expected_checksum" ]]; then
+    echo "Agent checksum verification failed."
+    echo "Expected: ${expected_checksum}"
+    echo "Actual:   ${actual_checksum}"
+    return 2
+  fi
+
+  install -m 755 "${download_dir}/${asset}" "$INSTALL_DIR/clarklab-agent"
+
+  "${INSTALL_DIR}/clarklab-agent" --help >/dev/null
+
+  echo "Clarklab agent installed successfully."
 }
 
 mkdir -p "$CONFIG_DIR"
@@ -118,33 +206,64 @@ echo "Preparing Rust toolchain for in-place agent updates..."
 RUST_HELPER="$(resolve_helper_script ensure-system-rust.sh)"
 SERVICE_USER="$SERVICE_USER" bash "$RUST_HELPER"
 
-echo "Building Clarklab agent from source..."
-
-AGENT_SRC=""
-if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../clarklab-agent/Cargo.toml" ]]; then
-  AGENT_SRC="${SCRIPT_DIR}/../clarklab-agent"
-fi
-
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-if [[ -n "$AGENT_SRC" ]]; then
-  cp -R "${AGENT_SRC}/." "$TMPDIR/"
-else
-  echo "Downloading agent source from ${SERVER}..."
-  if ! curl -fsSL "${SERVER}/agent/source.tar.gz" | tar -xzf - -C "$TMPDIR"; then
-    echo "Failed to download agent source archive from ${SERVER}/agent/source.tar.gz"
-    exit 1
+AGENT_INSTALLED=false
+
+if [[ "$BUILD_FROM_SOURCE" == false ]]; then
+  if install_prebuilt_agent "$TMPDIR"; then
+    AGENT_INSTALLED=true
+  else
+    download_status=$?
+
+    if [[ "$download_status" -eq 2 ]]; then
+      echo "Refusing to continue after checksum verification failure."
+      exit 1
+    fi
+
+    echo "Falling back to a local source build."
   fi
 fi
 
-if [[ ! -f "$TMPDIR/Cargo.toml" || ! -f "$TMPDIR/src/main.rs" ]]; then
-  echo "Could not find agent source. Clone the monorepo or copy clarklab-agent to the host."
-  exit 1
-fi
+if [[ "$AGENT_INSTALLED" == false ]]; then
+  echo "Building Clarklab agent from source..."
 
-(cd "$TMPDIR" && env CARGO_HOME="$CARGO_HOME" RUSTUP_HOME="$RUSTUP_HOME" cargo build --release)
-install -m 755 "$TMPDIR/target/release/clarklab-agent" "$INSTALL_DIR/clarklab-agent"
+  AGENT_SRC=""
+
+  if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../clarklab-agent/Cargo.toml" ]]; then
+    AGENT_SRC="${SCRIPT_DIR}/../clarklab-agent"
+  fi
+
+  if [[ -n "$AGENT_SRC" ]]; then
+    cp -R "${AGENT_SRC}/." "$TMPDIR/"
+  else
+    echo "Downloading agent source from ${SERVER}..."
+
+    if ! curl -fsSL "${SERVER}/agent/source.tar.gz" |
+      tar -xzf - -C "$TMPDIR"; then
+      echo "Failed to download agent source archive from ${SERVER}/agent/source.tar.gz"
+      exit 1
+    fi
+  fi
+
+  if [[ ! -f "$TMPDIR/Cargo.toml" || ! -f "$TMPDIR/src/main.rs" ]]; then
+    echo "Could not find agent source."
+    exit 1
+  fi
+
+  (
+    cd "$TMPDIR"
+    env \
+      CARGO_HOME="$CARGO_HOME" \
+      RUSTUP_HOME="$RUSTUP_HOME" \
+      cargo build --release --locked
+  )
+
+  install -m 755 \
+    "$TMPDIR/target/release/clarklab-agent" \
+    "$INSTALL_DIR/clarklab-agent"
+fi
 
 "$INSTALL_DIR/clarklab-agent" register \
   --token "$TOKEN" \

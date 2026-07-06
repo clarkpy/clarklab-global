@@ -30,7 +30,9 @@ pub fn stop_managed_containers() -> Result<(), String> {
             || stderr.contains("permission denied")
             || stderr.contains("Is the docker daemon running")
         {
-            eprintln!("Warning: Docker unavailable; skipping managed container stop before migration");
+            eprintln!(
+                "Warning: Docker unavailable; skipping managed container stop before migration"
+            );
             return Ok(());
         }
         return Err(format!("failed to list managed containers: {stderr}"));
@@ -84,15 +86,10 @@ fn move_entry(src: &Path, dst: &Path) -> Result<(), String> {
         Ok(()) => Ok(()),
         Err(_) => {
             copy_dir_all(src, dst).map_err(|e| {
-                format!(
-                    "failed to copy {} to {}: {e}",
-                    src.display(),
-                    dst.display()
-                )
+                format!("failed to copy {} to {}: {e}", src.display(), dst.display())
             })?;
-            fs::remove_dir_all(src).map_err(|e| {
-                format!("failed to remove {} after copy: {e}", src.display())
-            })?;
+            fs::remove_dir_all(src)
+                .map_err(|e| format!("failed to remove {} after copy: {e}", src.display()))?;
             Ok(())
         }
     }
@@ -122,7 +119,9 @@ pub fn migrate_data_root(old_root: &str, new_root: &str) -> Result<(), String> {
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("failed to read data root entry: {e}"))?;
-        let file_type = entry.file_type().map_err(|e| format!("failed to stat entry: {e}"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("failed to stat entry: {e}"))?;
         if !file_type.is_dir() {
             continue;
         }
@@ -179,11 +178,7 @@ mod tests {
         fs::create_dir_all(&service_dir).unwrap();
         fs::write(service_dir.join("db.dat"), b"payload").unwrap();
 
-        migrate_data_root(
-            &old_root.to_string_lossy(),
-            &new_root.to_string_lossy(),
-        )
-        .unwrap();
+        migrate_data_root(&old_root.to_string_lossy(), &new_root.to_string_lossy()).unwrap();
 
         let migrated = new_root.join("env-123").join("data").join("db.dat");
         assert!(migrated.exists());

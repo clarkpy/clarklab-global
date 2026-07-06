@@ -1,12 +1,13 @@
+use crate::agent_log::AgentLogBuffer;
 use crate::api::DeployTask;
+use crate::api::{HeartbeatRequest, HeartbeatResponse, RegisterResponse, TaskCompleteRequest};
 use crate::build;
+use crate::config::{clamp_heartbeat, normalize_data_root, resolved_data_root, AgentConfig};
 use crate::data_root::{migrate_data_root, paths_equal};
 use crate::docker::{self, RunSpec};
 use crate::git;
-use crate::agent_log::AgentLogBuffer;
-use crate::api::{HeartbeatRequest, HeartbeatResponse, RegisterResponse, TaskCompleteRequest};
+use crate::journal::JournalCollector;
 use crate::service_log::{ContainerLogCursors, TaskLogger};
-use crate::config::{clamp_heartbeat, normalize_data_root, resolved_data_root, AgentConfig};
 use reqwest::Client;
 use std::path::Path;
 use std::sync::Arc;
@@ -18,17 +19,17 @@ const SUPPORTED_TEMPLATES: &[&str] = &["postgresql", "mysql", "mongodb", "redis"
 fn emit_agent_line(agent_logs: &mut AgentLogBuffer, level: &str, message: impl AsRef<str>) {
     let message = message.as_ref();
     match level {
-        "error" => {
-            eprintln!("{message}");
-            agent_logs.error(message.to_string());
-        }
-        "warn" => {
-            eprintln!("{message}");
-            agent_logs.warn(message.to_string());
-        }
-        _ => {
-            println!("{message}");
-            agent_logs.info(message.to_string());
+        "error" | "warn" => eprintln!("{message}"),
+        _ => println!("{message}"),
+    }
+
+    // systemd captures stdout/stderr and the journal collector uploads it with
+    // a durable cursor. Keep the in-memory path when running without journald.
+    if std::env::var_os("JOURNAL_STREAM").is_none() {
+        match level {
+            "error" => agent_logs.error(message.to_string()),
+            "warn" => agent_logs.warn(message.to_string()),
+            _ => agent_logs.info(message.to_string()),
         }
     }
 }
@@ -71,10 +72,7 @@ pub async fn register(
     println!("Registered node {}", config.node_id);
     println!("Data root: {}", config.data_root);
     println!("Heartbeat interval: {}s", interval);
-    println!(
-        "Run: clarklab-agent run --config {}",
-        config_path.display()
-    );
+    println!("Run: clarklab-agent run --config {}", config_path.display());
     Ok(())
 }
 
@@ -108,10 +106,7 @@ pub async fn complete_task(
     task_id: &str,
     body: TaskCompleteRequest,
 ) -> Result<(), String> {
-    let url = format!(
-        "{}/api/agent/tasks/{}/complete",
-        config.server_url, task_id
-    );
+    let url = format!("{}/api/agent/tasks/{}/complete", config.server_url, task_id);
     let response = client
         .post(&url)
         .bearer_auth(&config.agent_token)
@@ -195,12 +190,18 @@ fn service_env_dir(data_root: &str, service_environment_id: &str) -> String {
 }
 
 fn source_dir(data_root: &str, service_environment_id: &str) -> String {
-    format!("{}/source", service_env_dir(data_root, service_environment_id))
+    format!(
+        "{}/source",
+        service_env_dir(data_root, service_environment_id)
+    )
 }
 
 fn run_spec_from_task(task: &DeployTask, data_root: &str) -> RunSpec {
     let host_data_path = if task.storage.enabled {
-        format!("{}/data", service_env_dir(data_root, &task.service_environment_id))
+        format!(
+            "{}/data",
+            service_env_dir(data_root, &task.service_environment_id)
+        )
     } else {
         String::new()
     };
@@ -275,10 +276,7 @@ fn process_git_deploy(task: &DeployTask, data_root: &str, logger: &mut TaskLogge
         .unwrap_or_else(|| source_path.to_str().unwrap_or(&source));
 
     if !context.is_dir() {
-        let err = format!(
-            "build context directory not found: {}",
-            context.display()
-        );
+        let err = format!("build context directory not found: {}", context.display());
         logger.error(&err);
         return TaskOutcome::failure(err, logger);
     }
@@ -330,7 +328,16 @@ pub async fn process_task(
             } else {
                 if let Err(err) = validate_task(task) {
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let spec = run_spec_from_task(task, &config.data_root);
                 match docker::docker_run(&spec, Some(&mut logger)) {
@@ -345,7 +352,10 @@ pub async fn process_task(
         }
         "start" => {
             if docker::container_exists(&task.container_name) {
-                logger.info(format!("Starting existing container {}", task.container_name));
+                logger.info(format!(
+                    "Starting existing container {}",
+                    task.container_name
+                ));
                 match docker::docker_start(&task.container_name) {
                     Ok(container_id) => TaskOutcome::success(
                         container_id,
@@ -357,13 +367,31 @@ pub async fn process_task(
             } else if task.effective_source_type() == "git" {
                 if let Err(err) = validate_git_task(task, false) {
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let image = git_image_name(&task.service_environment_id);
                 if !docker::local_image_exists(&image) {
                     let err = "no built image found; redeploy the service first".to_string();
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let spec = run_spec_from_task(task, &config.data_root);
                 match docker::docker_run(&spec, Some(&mut logger)) {
@@ -377,7 +405,16 @@ pub async fn process_task(
             } else {
                 if let Err(err) = validate_task(task) {
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let spec = run_spec_from_task(task, &config.data_root);
                 match docker::docker_run(&spec, Some(&mut logger)) {
@@ -393,13 +430,13 @@ pub async fn process_task(
         "stop" => {
             logger.info(format!("Stopping container {}", task.container_name));
             match docker::docker_stop(&task.container_name) {
-            Ok(()) => TaskOutcome::success(
-                String::new(),
-                format!("Stopped {}", task.service_name),
-                &mut logger,
-            ),
-            Err(err) => TaskOutcome::failure(err, &mut logger),
-        }
+                Ok(()) => TaskOutcome::success(
+                    String::new(),
+                    format!("Stopped {}", task.service_name),
+                    &mut logger,
+                ),
+                Err(err) => TaskOutcome::failure(err, &mut logger),
+            }
         }
         "restart" => {
             if docker::container_exists(&task.container_name) {
@@ -415,13 +452,31 @@ pub async fn process_task(
             } else if task.effective_source_type() == "git" {
                 if let Err(err) = validate_git_task(task, false) {
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let image = git_image_name(&task.service_environment_id);
                 if !docker::local_image_exists(&image) {
                     let err = "no built image found; redeploy the service first".to_string();
                     logger.error(&err);
-                    return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                    return report_failure(
+                        client,
+                        config,
+                        task,
+                        deployment_id,
+                        err,
+                        logger,
+                        agent_logs,
+                    )
+                    .await;
                 }
                 let spec = run_spec_from_task(task, &config.data_root);
                 match docker::docker_run(&spec, Some(&mut logger)) {
@@ -434,7 +489,16 @@ pub async fn process_task(
                 }
             } else if let Err(err) = validate_task(task) {
                 logger.error(&err);
-                return report_failure(client, config, task, deployment_id, err, logger, agent_logs).await;
+                return report_failure(
+                    client,
+                    config,
+                    task,
+                    deployment_id,
+                    err,
+                    logger,
+                    agent_logs,
+                )
+                .await;
             } else {
                 let spec = run_spec_from_task(task, &config.data_root);
                 match docker::docker_run(&spec, Some(&mut logger)) {
@@ -594,6 +658,8 @@ pub async fn run_agent(config_path: std::path::PathBuf) -> Result<(), Box<dyn st
     let mut log_cursors = ContainerLogCursors::default();
     let mut agent_logs = AgentLogBuffer::new();
     let shared_logs = Arc::new(Mutex::new(AgentLogBuffer::new()));
+    let journal_cursor_path = config_path.with_file_name("journal.cursor");
+    let mut journal = JournalCollector::new("clarklab-agent.service", journal_cursor_path);
 
     if detect_docker_unavailable() {
         agent_logs.warn("Docker is not available on this node. Deploy tasks will fail.");
@@ -630,9 +696,27 @@ pub async fn run_agent(config_path: std::path::PathBuf) -> Result<(), Box<dyn st
                 }
             }
         }
+
+        let journal_batch = match journal.collect() {
+            Ok(batch) => batch,
+            Err(err) => {
+                agent_logs.error(format!("Journal collection error: {err}"));
+                Default::default()
+            }
+        };
+
+        let journal_cursor = journal_batch.next_cursor.clone();
+
         metrics.agent_logs = agent_logs.drain();
+        metrics.agent_logs.extend(journal_batch.entries);
+
         match send_heartbeat(&client, &config, metrics).await {
             Ok(body) => {
+                if let Some(cursor) = journal_cursor.as_deref() {
+                    if let Err(err) = journal.commit(cursor) {
+                        agent_logs.warn(format!("Could not save journal cursor: {err}"));
+                    }
+                }
                 heartbeat_seconds = clamp_heartbeat(body.heartbeat_interval_seconds);
                 let pending_count = body.pending_tasks.len();
                 emit_agent_line(
@@ -659,9 +743,7 @@ pub async fn run_agent(config_path: std::path::PathBuf) -> Result<(), Box<dyn st
                     .await;
                 }
                 for task in body.pending_tasks {
-                    if let Err(err) =
-                        process_task(&client, &config, &task, &mut agent_logs).await
-                    {
+                    if let Err(err) = process_task(&client, &config, &task, &mut agent_logs).await {
                         agent_logs.error(format!("Task processing error: {err}"));
                     }
                 }
@@ -721,6 +803,7 @@ mod tests {
             build_command: String::new(),
             install_command: String::new(),
             restart_policy: "unless-stopped".to_string(),
+            health_check: String::new(),
             container_port: Some(3306),
         }
     }

@@ -5,6 +5,7 @@ mod config;
 mod data_root;
 mod docker;
 mod git;
+mod journal;
 mod service_log;
 mod tasks;
 mod toolchain;

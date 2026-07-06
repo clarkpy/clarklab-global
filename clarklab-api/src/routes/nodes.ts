@@ -1004,6 +1004,8 @@ agentRoutes.post('/heartbeat', requireAgent, async (c) => {
     agentLogs?: Array<{
       level?: string
       message?: string
+      sourceId?: string
+      recordedAtMs?: number
     }>
     agentVersion?: string
   }>()
@@ -1161,7 +1163,17 @@ agentRoutes.post('/heartbeat', requireAgent, async (c) => {
       if (!message) continue
       const level =
         entry.level === 'error' || entry.level === 'warn' ? entry.level : 'info'
-      await appendAgentLog(nodeId, level, message)
+
+      await appendAgentLog(nodeId, level, message, {
+        sourceId:
+          typeof entry.sourceId === 'string'
+            ? entry.sourceId.slice(0, 1_000)
+            : undefined,
+        recordedAtMs:
+          typeof entry.recordedAtMs === 'number'
+            ? entry.recordedAtMs
+            : undefined,
+      })
     }
   }
 

@@ -61,6 +61,7 @@ pub struct TaskEnvVar {
     pub key: String,
     pub value: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub is_secret: bool,
 }
 
@@ -72,6 +73,7 @@ pub struct TaskStorage {
     #[serde(default)]
     pub mount_path: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub host_data_path: String,
 }
 
@@ -83,11 +85,13 @@ pub struct DeployTask {
     pub service_id: String,
     pub service_name: String,
     pub service_environment_id: String,
+    #[allow(dead_code)]
     pub environment: String,
     pub port: Option<u32>,
     pub image: String,
     pub container_name: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub existing_container_id: String,
     #[serde(default)]
     pub template_id: String,
@@ -134,7 +138,11 @@ impl DeployTask {
         if !self.repository.trim().is_empty() {
             return "git";
         }
-        if let Some(value) = self.deploy_config.get("sourceType").and_then(|v| v.as_str()) {
+        if let Some(value) = self
+            .deploy_config
+            .get("sourceType")
+            .and_then(|v| v.as_str())
+        {
             if value == "git" {
                 return "git";
             }
@@ -304,11 +312,15 @@ pub fn detect_docker_version() -> String {
     }
 }
 
-fn primary_disk<'a>(disks: &'a [Disk]) -> Option<&'a Disk> {
+fn primary_disk(disks: &[Disk]) -> Option<&Disk> {
     disks
         .iter()
         .find(|disk| disk.mount_point() == Path::new("/System/Volumes/Data"))
-        .or_else(|| disks.iter().find(|disk| disk.mount_point() == Path::new("/")))
+        .or_else(|| {
+            disks
+                .iter()
+                .find(|disk| disk.mount_point() == Path::new("/"))
+        })
 }
 
 fn disk_usage_bytes(disks: &Disks) -> (u64, u64) {

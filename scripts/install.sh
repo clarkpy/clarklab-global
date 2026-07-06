@@ -64,6 +64,10 @@ if ! id "$SERVICE_USER" >/dev/null 2>&1; then
 fi
 usermod -aG docker "$SERVICE_USER" 2>/dev/null || true
 
+if getent group systemd-journal >/dev/null 2>&1; then
+  usermod -aG systemd-journal "$SERVICE_USER" 2>/dev/null || true
+fi
+
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl is required"
   exit 1

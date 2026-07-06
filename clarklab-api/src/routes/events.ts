@@ -145,6 +145,9 @@ eventRoutes.get('/logs', async (c) => {
   if (!payload) return c.json({ error: 'Unauthorized' }, 401)
 
   const scope = c.req.query('scope') ?? 'service'
+  if (scope === 'agent' && payload.role !== 'sysadmin') {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
   const serviceId = c.req.query('serviceId') ?? undefined
   const nodeId = c.req.query('nodeId') ?? undefined
   const project = c.req.query('project') ?? undefined

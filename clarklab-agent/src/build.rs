@@ -172,16 +172,13 @@ fn format_nixpacks_output(output: &std::process::Output) -> String {
 }
 
 fn run_nixpacks(args: &[String]) -> Result<std::process::Output, String> {
-    Command::new("nixpacks")
-        .args(args)
-        .output()
-        .map_err(|e| {
-            if e.kind() == io::ErrorKind::NotFound {
-                NIXPACKS_INSTALL_HINT.to_string()
-            } else {
-                format!("failed to run nixpacks: {e}")
-            }
-        })
+    Command::new("nixpacks").args(args).output().map_err(|e| {
+        if e.kind() == io::ErrorKind::NotFound {
+            NIXPACKS_INSTALL_HINT.to_string()
+        } else {
+            format!("failed to run nixpacks: {e}")
+        }
+    })
 }
 
 fn format_nixpacks_failure(prefix: &str, output: &std::process::Output) -> String {
@@ -215,15 +212,16 @@ fn nixpacks_platform() -> String {
 }
 
 fn orbstack_gc_hint(output: &str) -> String {
-    if output.contains("nix-collect-garbage")
-        && output.contains("Operation not permitted")
-    {
+    if output.contains("nix-collect-garbage") && output.contains("Operation not permitted") {
         return "\n\nHint: this is a known OrbStack issue with Nixpacks garbage collection inside Docker builds. Rebuild the Clarklab agent to apply the Dockerfile patch workaround.".to_string();
     }
     String::new()
 }
 
-fn resolve_commands(source_dir: &str, options: &NixpacksOptions) -> Result<ResolvedCommands, String> {
+fn resolve_commands(
+    source_dir: &str,
+    options: &NixpacksOptions,
+) -> Result<ResolvedCommands, String> {
     let scripts = read_package_scripts(source_dir).unwrap_or_default();
     let mut resolved = ResolvedCommands {
         start_command: trim_option(options.start_command.clone()),
@@ -264,7 +262,9 @@ fn resolve_build_command(
 }
 
 fn has_script(scripts: &BTreeMap<String, String>, name: &str) -> bool {
-    scripts.get(name).is_some_and(|script| !script.trim().is_empty())
+    scripts
+        .get(name)
+        .is_some_and(|script| !script.trim().is_empty())
 }
 
 fn npm_run_script_name(command: &str) -> Option<&str> {
@@ -302,7 +302,11 @@ fn read_package_scripts(source_dir: &str) -> Result<BTreeMap<String, String>, St
 
     Ok(scripts
         .iter()
-        .filter_map(|(key, value)| value.as_str().map(|script| (key.clone(), script.to_string())))
+        .filter_map(|(key, value)| {
+            value
+                .as_str()
+                .map(|script| (key.clone(), script.to_string()))
+        })
         .collect())
 }
 
@@ -323,10 +327,8 @@ mod tests {
 
     #[test]
     fn patches_nix_collect_garbage_from_dockerfile() {
-        let temp = std::env::temp_dir().join(format!(
-            "clarklab-dockerfile-patch-{}",
-            std::process::id()
-        ));
+        let temp =
+            std::env::temp_dir().join(format!("clarklab-dockerfile-patch-{}", std::process::id()));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(temp.join(".nixpacks")).expect("create nixpacks dir");
         let dockerfile = temp.join(".nixpacks/Dockerfile");
@@ -347,10 +349,7 @@ mod tests {
 
     #[test]
     fn infers_start_from_package_json() {
-        let temp = std::env::temp_dir().join(format!(
-            "clarklab-build-test-{}",
-            std::process::id()
-        ));
+        let temp = std::env::temp_dir().join(format!("clarklab-build-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).expect("create temp dir");
         fs::write(
@@ -407,8 +406,11 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).expect("create temp dir");
-        fs::write(temp.join("package.json"), r#"{"scripts":{"start":"node index.js"}}"#)
-            .expect("write package.json");
+        fs::write(
+            temp.join("package.json"),
+            r#"{"scripts":{"start":"node index.js"}}"#,
+        )
+        .expect("write package.json");
 
         let resolved = resolve_commands(
             temp.to_str().unwrap(),

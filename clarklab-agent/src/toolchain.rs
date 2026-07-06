@@ -27,10 +27,7 @@ pub fn resolve_cargo_path() -> Result<PathBuf, String> {
         }
     }
 
-    if let Ok(output) = Command::new("sh")
-        .args(["-c", "command -v cargo"])
-        .output()
-    {
+    if let Ok(output) = Command::new("sh").args(["-c", "command -v cargo"]).output() {
         if output.status.success() {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path.is_empty() && Path::new(&path).is_file() {

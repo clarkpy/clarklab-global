@@ -37,6 +37,7 @@ impl TaskLogger {
         self.push_line("info", message.into());
     }
 
+    #[allow(dead_code)]
     pub fn warn(&mut self, message: impl Into<String>) {
         self.push_line("warn", message.into());
     }
@@ -62,11 +63,7 @@ impl TaskLogger {
         if self.entries.len() >= MAX_TASK_LOG_LINES {
             return;
         }
-        let message = if message.len() > MAX_LINE_LEN {
-            format!("{}…", &message[..MAX_LINE_LEN])
-        } else {
-            message
-        };
+        let message = truncate_chars(&message, MAX_LINE_LEN);
         self.entries.push(TaskLogEntry {
             level: level.to_string(),
             message,
@@ -74,6 +71,7 @@ impl TaskLogger {
         });
     }
 
+    #[cfg(test)]
     pub fn into_entries(self) -> Vec<TaskLogEntry> {
         self.entries
     }
@@ -142,10 +140,17 @@ pub fn classify_container_log_line(line: &str) -> (&'static str, String) {
 
 fn trim_log_line(line: &str) -> String {
     let trimmed = line.trim();
-    if trimmed.len() <= MAX_LINE_LEN {
-        return trimmed.to_string();
+    truncate_chars(trimmed, MAX_LINE_LEN)
+}
+
+fn truncate_chars(value: &str, limit: usize) -> String {
+    let mut characters = value.chars();
+    let truncated = characters.by_ref().take(limit).collect::<String>();
+    if characters.next().is_some() {
+        format!("{truncated}…")
+    } else {
+        truncated
     }
-    format!("{}…", &trimmed[..MAX_LINE_LEN])
 }
 
 #[cfg(test)]

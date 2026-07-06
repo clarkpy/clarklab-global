@@ -103,13 +103,7 @@ pub fn clone_repo(
         None,
         git_http_header,
         &[
-            "clone",
-            "--depth",
-            "1",
-            "--branch",
-            branch,
-            clean_url,
-            dest_str,
+            "clone", "--depth", "1", "--branch", branch, clean_url, dest_str,
         ],
     )?;
 

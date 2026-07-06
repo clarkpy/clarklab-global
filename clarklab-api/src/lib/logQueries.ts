@@ -99,10 +99,14 @@ export async function queryAgentLogs(
   const capped = Math.min(Math.max(limit, 1), 500)
   const result = await pool.query(
     `SELECT id, node_id, level, message, recorded_at
-     FROM agent_logs
-     WHERE node_id = $1
-     ORDER BY recorded_at ASC
-     LIMIT $2`,
+     FROM (
+       SELECT id, node_id, level, message, recorded_at
+       FROM agent_logs
+       WHERE node_id = $1
+       ORDER BY recorded_at DESC
+       LIMIT $2
+     ) recent_logs
+     ORDER BY recorded_at ASC`,
     [nodeId, capped],
   )
 

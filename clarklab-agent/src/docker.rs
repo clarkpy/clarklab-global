@@ -1,8 +1,8 @@
-use crate::service_log::{classify_container_log_line, ContainerLogCursors, ServiceLogLine, TaskLogger};
+use crate::service_log::{
+    classify_container_log_line, ContainerLogCursors, ServiceLogLine, TaskLogger,
+};
 use std::collections::HashMap;
 use std::process::Command;
-use std::thread;
-use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct RunSpec {
@@ -155,7 +155,7 @@ pub fn runtime_env_vars(
 }
 
 pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result<String, String> {
-    if let Some(logger) = logger.as_deref_mut() {
+    if let Some(logger) = logger.as_mut() {
         let container_port = if spec.container_port > 0 {
             spec.container_port
         } else {
@@ -173,11 +173,11 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
 
     remove_container(&spec.container_name)?;
     if !spec.skip_pull {
-        if let Some(logger) = logger.as_deref_mut() {
+        if let Some(logger) = logger.as_mut() {
             logger.info(format!("Pulling image {}", spec.image));
         }
         if let Err(err) = docker_pull(&spec.image) {
-            if let Some(logger) = logger.as_deref_mut() {
+            if let Some(logger) = logger.as_mut() {
                 logger.error(&err);
             }
             return Err(err);
@@ -186,10 +186,10 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
 
     let mut effective_spec = spec.clone();
     let runtime_port = if spec.container_port > 0 {
-          spec.container_port
-      } else {
-          spec.port
-      };
+        spec.container_port
+    } else {
+        spec.port
+    };
     effective_spec.env_vars = runtime_env_vars(
         runtime_port,
         spec.env_vars.clone(),
@@ -206,7 +206,7 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        if let Some(logger) = logger.as_deref_mut() {
+        if let Some(logger) = logger.as_mut() {
             logger.error(format!("docker run failed: {stderr}"));
         }
         return Err(format!("docker run failed: {stderr}"));
@@ -219,8 +219,11 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
     } else {
         container_id
     };
-    if let Some(logger) = logger.as_deref_mut() {
-        logger.info(format!("Container started ({})", &resolved_id[..12.min(resolved_id.len())]));
+    if let Some(logger) = logger.as_mut() {
+        logger.info(format!(
+            "Container started ({})",
+            &resolved_id[..12.min(resolved_id.len())]
+        ));
         if let Ok(logs) = fetch_container_logs(&spec.container_name, 0) {
             logger.output("container startup", &logs);
         }
@@ -228,6 +231,7 @@ pub fn docker_run(spec: &RunSpec, mut logger: Option<&mut TaskLogger>) -> Result
     Ok(resolved_id)
 }
 
+#[allow(dead_code)]
 fn rename_container(current_name: &str, new_name: &str) -> Result<(), String> {
     let output = Command::new("docker")
         .args(["rename", current_name, new_name])
@@ -243,33 +247,37 @@ fn rename_container(current_name: &str, new_name: &str) -> Result<(), String> {
     }
 }
 
-fn inspect_container_state(name: &str) -> Result<(bool, String), String>
-  {
-      let output = Command::new("docker")
-          .args([
-              "inspect",
-              "-f",
-              "{{.State.Running}} {{if .State.Health}}
+#[allow(dead_code)]
+fn inspect_container_state(name: &str) -> Result<(bool, String), String> {
+    let output = Command::new("docker")
+        .args([
+            "inspect",
+            "-f",
+            "{{.State.Running}} {{if .State.Health}}
               {{.State.Health.Status}}{{else}}none{{end}}",
-              name,
-          ])
-          .output()
-          .map_err(|e| format!("failed to inspect container {name}:
-          {e}"))?;
+            name,
+        ])
+        .output()
+        .map_err(|e| {
+            format!(
+                "failed to inspect container {name}:
+          {e}"
+            )
+        })?;
 
-      if !output.status.success() {
-          return Err(format!(
-              "failed to inspect container {name}: {}",
-              String::from_utf8_lossy(&output.stderr)
-          ));
-      }
+    if !output.status.success() {
+        return Err(format!(
+            "failed to inspect container {name}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
 
-      let value = String::from_utf8_lossy(&output.stdout);
-      let mut parts = value.split_whitespace();
-      let running = parts.next() == Some("true");
-      let health = parts.next().unwrap_or("none").to_string();
+    let value = String::from_utf8_lossy(&output.stdout);
+    let mut parts = value.split_whitespace();
+    let running = parts.next() == Some("true");
+    let health = parts.next().unwrap_or("none").to_string();
 
-      Ok((running, health))
+    Ok((running, health))
 }
 
 pub fn docker_start(name: &str) -> Result<String, String> {
@@ -341,7 +349,7 @@ fn parse_percent(value: &str) -> Option<f32> {
 }
 
 fn parse_memory_size_mb(value: &str) -> Option<f32> {
-    let token = value.trim().split_whitespace().next()?;
+    let token = value.split_whitespace().next()?;
     let upper = token.to_uppercase();
     let (number, unit) = if let Some(num) = upper.strip_suffix("GIB") {
         (num.parse::<f32>().ok()?, "GIB")
@@ -419,7 +427,13 @@ pub fn collect_managed_container_stats() -> Vec<ContainerMetricReport> {
         let health_status = parts.next().map(|value| value.to_string());
 
         let stats_output = match Command::new("docker")
-            .args(["stats", "--no-stream", "--format", "{{.CPUPerc}}\t{{.MemUsage}}", &id])
+            .args([
+                "stats",
+                "--no-stream",
+                "--format",
+                "{{.CPUPerc}}\t{{.MemUsage}}",
+                &id,
+            ])
             .output()
         {
             Ok(output) if output.status.success() => output,
@@ -428,10 +442,7 @@ pub fn collect_managed_container_stats() -> Vec<ContainerMetricReport> {
 
         let stats_line = String::from_utf8_lossy(&stats_output.stdout);
         let mut stats_parts = stats_line.split('\t');
-        let cpu_percent = stats_parts
-            .next()
-            .and_then(parse_percent)
-            .unwrap_or(0.0);
+        let cpu_percent = stats_parts.next().and_then(parse_percent).unwrap_or(0.0);
         let memory = stats_parts
             .next()
             .and_then(parse_mem_usage)
@@ -501,13 +512,7 @@ pub fn fetch_container_logs(container_name: &str, since_unix: i64) -> Result<Str
     let output = if since_unix > 0 {
         let since = since_unix.to_string();
         Command::new("docker")
-            .args([
-                "logs",
-                "--since",
-                &since,
-                "--timestamps",
-                container_name,
-            ])
+            .args(["logs", "--since", &since, "--timestamps", container_name])
             .output()
     } else {
         Command::new("docker")
@@ -530,7 +535,12 @@ pub fn collect_service_logs(cursors: &mut ContainerLogCursors) -> Vec<ServiceLog
         };
         cursors.mark_fetched(&container_name);
 
-        for line in raw.lines().map(str::trim).filter(|line| !line.is_empty()).take(40) {
+        for line in raw
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .take(40)
+        {
             let (level, message) = classify_container_log_line(line);
             lines.push(ServiceLogLine {
                 service_id: service_id.clone(),
@@ -695,7 +705,10 @@ mod tests {
     fn runtime_env_vars_skips_app_defaults_for_databases() {
         let vars = runtime_env_vars(
             2994,
-            vec![("MONGO_INITDB_ROOT_USERNAME".to_string(), "clarklab".to_string())],
+            vec![(
+                "MONGO_INITDB_ROOT_USERNAME".to_string(),
+                "clarklab".to_string(),
+            )],
             false,
         );
         let map: HashMap<String, String> = vars.into_iter().collect();
@@ -709,11 +722,7 @@ mod tests {
 
     #[test]
     fn runtime_env_vars_respect_existing_port() {
-        let vars = runtime_env_vars(
-            2994,
-            vec![("PORT".to_string(), "8080".to_string())],
-            true,
-        );
+        let vars = runtime_env_vars(2994, vec![("PORT".to_string(), "8080".to_string())], true);
         let map: HashMap<String, String> = vars.into_iter().collect();
         assert_eq!(map.get("PORT"), Some(&"8080".to_string()));
     }

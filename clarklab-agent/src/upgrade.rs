@@ -200,10 +200,7 @@ pub async fn maybe_start_agent_update(
                 let pending = PendingCompletion {
                     task_id: task.id.clone(),
                     status: body.status.clone(),
-                    message: body
-                        .message
-                        .clone()
-                        .unwrap_or_else(|| err.clone()),
+                    message: body.message.clone().unwrap_or_else(|| err.clone()),
                     agent_version: agent_version.clone(),
                     deployed_commit_sha: if result.is_ok() && !deployed_sha.is_empty() {
                         Some(deployed_sha)

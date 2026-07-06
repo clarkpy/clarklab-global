@@ -18,13 +18,12 @@ const SUPPORTED_TEMPLATES: &[&str] = &["postgresql", "mysql", "mongodb", "redis"
 
 fn emit_agent_line(agent_logs: &mut AgentLogBuffer, level: &str, message: impl AsRef<str>) {
     let message = message.as_ref();
+
     match level {
         "error" | "warn" => eprintln!("{message}"),
         _ => println!("{message}"),
     }
 
-    // systemd captures stdout/stderr and the journal collector uploads it with
-    // a durable cursor. Keep the in-memory path when running without journald.
     if std::env::var_os("JOURNAL_STREAM").is_none() {
         match level {
             "error" => agent_logs.error(message.to_string()),

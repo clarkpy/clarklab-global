@@ -4,6 +4,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { AgentInstallCommandPanel } from '@/components/AgentInstallCommandPanel'
 import { TokenExpiryCountdown } from '@/components/TokenExpiryCountdown'
 import { Card } from '@/components/ui/card'
+import { PageButton } from '@/components/ui/pageButton'
 import {
   DEFAULT_NODE_DATA_ROOT,
   LOCAL_DEV_DATA_ROOT,
@@ -26,6 +27,8 @@ interface NodeSetupWizardProps {
   dataRootSaving?: boolean
   onRegenerate: () => void
   regenerating: boolean
+  onCancelSetup?: () => void
+  cancellingSetup?: boolean
   variant?: 'setup' | 'reconnect'
 }
 
@@ -198,6 +201,8 @@ export function NodeSetupWizard({
   dataRootSaving = false,
   onRegenerate,
   regenerating,
+  onCancelSetup,
+  cancellingSetup,
   variant = 'setup',
 }: NodeSetupWizardProps) {
   const isReconnect = variant === 'reconnect'
@@ -415,15 +420,32 @@ export function NodeSetupWizard({
 
   return (
     <Card className="p-6">
-      <h2 className="theme-heading text-lg font-black">
-        {isReconnect ? 'Reconnect checklist' : 'Setup checklist'}
-      </h2>
-      <p className="theme-subheading mt-2 text-sm leading-6">
-        {isReconnect
-          ? 'Bring this node back online without losing its settings or history.'
-          : 'Complete the checklist, your progress is updated as the control plane receives heartbeats.'}
-      </p>
-      <ol className="mt-6 space-y-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="theme-heading text-lg font-black">
+            {isReconnect ? 'Reconnect checklist' : 'Setup checklist'}
+          </h2>
+          <p className="theme-subheading mt-2 text-sm leading-6">
+            {isReconnect
+              ? 'Bring this node back online without losing its settings or history.'
+              : 'Complete the checklist, your progress is updated as the control plane receives heartbeats.'}
+          </p>
+        </div>
+
+        {!isReconnect && onCancelSetup ? (
+          <PageButton
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={onCancelSetup}
+            disabled={cancellingSetup}
+          >
+            {cancellingSetup ? 'Cancelling…' : 'Cancel setup'}
+          </PageButton>
+        ) : null}
+        </div>
+
+    <ol className="mt-6 space-y-0">
         {steps.map((step, index) => {
           const state = stepState(index, setupStatus)
           const isLast = index === steps.length - 1

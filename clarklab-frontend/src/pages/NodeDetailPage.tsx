@@ -23,6 +23,7 @@ import { AddServiceDialog } from '@/components/AddServiceDialog'
 import { MetricDetailDialog } from '@/components/MetricDetailDialog'
 import { RelativeTime } from '@/components/RelativeTime'
 import { toast } from '@/lib/toast'
+import { ApiError } from '@/lib/httpClient'
 import { getFetchErrorMessage } from '@/lib/fetchError'
 import {
   fetchNodeById,
@@ -105,6 +106,8 @@ export default function NodeDetailPage() {
   const [reconnecting, setReconnecting] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [confirmReconnect, setConfirmReconnect] = useState(false)
+  const [confirmCancelSetup, setConfirmCancelSetup] = useState(false)
+  const [cancellingSetup, setCancellingSetup] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null)
   const [nameInput, setNameInput] = useState('')
@@ -134,25 +137,37 @@ export default function NodeDetailPage() {
   const [createServiceOpen, setCreateServiceOpen] = useState(false)
   const [selectedMetric, setSelectedMetric] = useState<SystemMetric | null>(null)
   const autoRegenerateAttempted = useRef(false)
+  const cancellingSetupRef = useRef(false)
   const setupCompletePrev = useRef<boolean | null>(null)
   const settingsNodeIdRef = useRef<string | null>(null)
   const { resetFormDirty, isFormDirty, formEditCaptureProps } = useFormDirtyGuard()
 
   const refresh = useCallback(() => {
     if (!nodeId) return
+
     setLoadError(null)
+
     Promise.all([fetchNodeById(nodeId), fetchNodeSetupStatus(nodeId)])
       .then(([nextNode, nextStatus]) => {
         setNode(nextNode ?? null)
         setSetupStatus(nextStatus)
       })
       .catch((err: unknown) => {
+        if (
+          cancellingSetupRef.current ||
+          (err instanceof ApiError && err.status === 404)
+        ) {
+          clearPendingSetup(nodeId)
+          navigate('/dashboard/nodes', { replace: true })
+          return
+        }
+
         const message = getFetchErrorMessage(err)
         setLoadError(message)
         toast.failed(message)
       })
       .finally(() => setLoading(false))
-  }, [nodeId])
+  }, [nodeId, navigate])
 
   useEffect(() => {
     fetchAccountProfile()
@@ -519,6 +534,38 @@ export default function NodeDetailPage() {
 
   const agentNeedsUpdate = releaseNeedsUpdate(nodeRelease)
 
+  const handleCancelSetup = async () => {
+    if (!nodeId || setupKind !== 'setup') return
+
+    cancellingSetupRef.current = true
+    setCancellingSetup(true)
+    setLoadError(null)
+
+    try {
+      clearPendingSetup(nodeId)
+
+      const result = await removeNodeAsync(nodeId)
+
+      if (!result.success && !/not found/i.test(result.message)) {
+        cancellingSetupRef.current = false
+        setNotice({ text: result.message, ok: false })
+        toast.failed(result.message)
+        return
+      }
+
+      toast.success('Node setup cancelled')
+      navigate('/dashboard/nodes', { replace: true })
+    } catch (err) {
+      cancellingSetupRef.current = false
+      const message = err instanceof Error ? err.message : 'Failed to cancel node setup'
+      setNotice({ text: message, ok: false })
+      toast.failed(message)
+    } finally {
+      setCancellingSetup(false)
+      setConfirmCancelSetup(false)
+    }
+  }
+
   const handleRemove = async () => {
     if (!nodeId) return
     setActionLoading(true)
@@ -689,6 +736,12 @@ export default function NodeDetailPage() {
                 dataRootSaving={dataRootSaving}
                 onRegenerate={handleRegenerate}
                 regenerating={regenerating}
+                onCancelSetup={
+                  isSysadmin && setupKind === 'setup'
+                    ? () => setConfirmCancelSetup(true)
+                    : undefined
+                }
+                cancellingSetup={cancellingSetup}
                 variant={setupKind}
               />
             </TabsContent>
@@ -1082,19 +1135,25 @@ export default function NodeDetailPage() {
       />
 
       <ConfirmActionDialog
-        open={confirmReconnect}
-        onClose={() => setConfirmReconnect(false)}
-        onConfirm={() => {
-          void handleReconnect().finally(() => setConfirmReconnect(false))
-        }}
-        title="Issue reconnect token"
-        description={
-          node.status === 'online'
-            ? `${node.name} will be marked pending and the running agent will lose access until you re-register on the host. Continue?`
-            : `Issue a new registration token for ${node.name}? Re-run the register command on the host, then start the agent.`
-        }
-        confirmLabel="Issue token"
-        loading={reconnecting}
+        open={confirmCancelSetup}
+        onClose={() => setConfirmCancelSetup(false)}
+        onConfirm={() => void handleCancelSetup()}
+        title="Cancel node setup"
+        description={`Cancel setup for ${node.name}? This removes the pending node and clears its registration token.`}
+        confirmLabel="Cancel setup"
+        destructive
+        loading={cancellingSetup}
+      />
+
+      <ConfirmActionDialog
+        open={confirmCancelSetup}
+        onClose={() => setConfirmCancelSetup(false)}
+        onConfirm={handleCancelSetup}
+        title="Cancel node setup"
+        description={`Cancel setup for ${node.name}? This removes the pending node and clears its registration token.`}
+        confirmLabel="Cancel setup"
+        destructive
+        loading={cancellingSetup}
       />
 
       <ConfirmActionDialog

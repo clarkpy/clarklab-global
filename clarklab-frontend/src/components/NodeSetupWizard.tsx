@@ -4,7 +4,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { AgentInstallCommandPanel } from '@/components/AgentInstallCommandPanel'
 import { TokenExpiryCountdown } from '@/components/TokenExpiryCountdown'
 import { Card } from '@/components/ui/card'
-import { PageButton } from '@/components/ui/pageButton'
+import { PageButton } from '@/components/ui/PageButton'
 import {
   DEFAULT_NODE_DATA_ROOT,
   LOCAL_DEV_DATA_ROOT,
